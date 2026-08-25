@@ -1,0 +1,16 @@
+resources:
+  apps:
+    fraud_mcp:
+      name: mcp-insurance-fraud-poc
+      description: MCP tools for external VIN evidence and controlled case-memory writes.
+      source_code_path: ../app
+      resources:
+        - name: fraud-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: fraud-memory-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.case_memory
+            securable_type: TABLE
+            permission: MODIFY

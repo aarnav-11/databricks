@@ -1,0 +1,8 @@
+command: ["uv", "run", "insurance-fraud-mcp"]
+env:
+  - name: WAREHOUSE_ID
+    valueFrom: fraud-warehouse
+  - name: FRAUD_CATALOG
+    value: workspace
+  - name: FRAUD_SCHEMA
+    value: insurance_fraud_poc

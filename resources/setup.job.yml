@@ -1,0 +1,13 @@
+resources:
+  jobs:
+    bootstrap_fraud_memory:
+      name: insurance-fraud-memory-bootstrap
+      description: Creates the Delta memory planes, sample data, and controlled UC tools.
+      tasks:
+        - task_key: bootstrap
+          timeout_seconds: 1800
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../sql/bootstrap.sql
+              source: WORKSPACE

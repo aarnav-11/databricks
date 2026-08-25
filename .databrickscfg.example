@@ -1,0 +1,8 @@
+# Safe template for the Databricks CLI profile used by this POC.
+# Do not add a token or client secret to this file.
+# Preferred setup:
+#   databricks auth login --host https://<workspace-host> --profile POC
+
+[POC]
+host = https://dbc-d0355882-ae53.cloud.databricks.com
+auth_type = databricks-cli

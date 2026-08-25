@@ -94,6 +94,20 @@ curl --request POST \
   --data '{"input":[{"role":"user","content":"Investigate CLM-1001 and explain the strongest risk signals."}]}'
 ```
 
+For development diagnostics, opt in to a safe orchestration trace. The
+response will include `custom_outputs.supervisor_trace` with loop decisions,
+selected planes, function/tool names, statuses, row counts, and stop reasons.
+It intentionally does not expose private model chain-of-thought or hidden
+prompts:
+
+```bash
+curl --request POST \
+  --url https://<custom-app-url>/responses \
+  --header "Authorization: Bearer <oauth-token>" \
+  --header "Content-Type: application/json" \
+  --data '{"input":[{"role":"user","content":"For CLM-1001, give me a concise triage summary."}],"custom_inputs":{"debug_trace":true}}'
+```
+
 For a local code check, install `uv`, authenticate the `POC` profile, and run:
 
 ```bash

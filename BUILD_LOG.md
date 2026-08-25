@@ -195,6 +195,15 @@ Databricks App resource limit. The custom agent receives the governed function
 surface rather than direct table bindings; each adapter invokes parameterized
 Unity Catalog SQL functions through Statement Execution.
 
+### Safe orchestration trace (2026-08-25)
+
+Requests may set `custom_inputs.debug_trace` to `true`. The Responses API then
+returns `custom_outputs.supervisor_trace` containing the loop's decisions,
+accepted/rejected planes, function/tool names, statuses, row counts, queried
+planes, and stop reason. It deliberately excludes private model chain-of-
+thought and hidden prompts. A live `CLM-1001` request returned HTTP 200 with
+the trace and completed after the snapshot, governance, and entities planes.
+
 ### Root-route follow-up
 
 The first deployment intentionally enabled MLflow's optional chat proxy even

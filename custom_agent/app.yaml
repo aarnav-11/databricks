@@ -1,0 +1,17 @@
+command: ["uv", "run", "start-server"]
+
+env:
+  - name: WAREHOUSE_ID
+    valueFrom: supervisor-warehouse
+  - name: MLFLOW_TRACKING_URI
+    value: databricks
+  - name: MLFLOW_REGISTRY_URI
+    value: databricks-uc
+  - name: FRAUD_CATALOG
+    value: workspace
+  - name: FRAUD_SCHEMA
+    value: insurance_fraud_poc
+  - name: MODEL_ENDPOINT
+    value: databricks-claude-sonnet-4-5
+  - name: MCP_APP_NAME
+    value: mcp-insurance-fraud-poc

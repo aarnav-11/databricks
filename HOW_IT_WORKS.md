@@ -291,15 +291,16 @@ audit_events
 1. create the schema if it does not exist;
 2. create tables if they do not exist;
 3. replace the small synthetic seed rows with `INSERT OVERWRITE`;
-4. recreate the seven SQL functions;
+4. recreate the twelve SQL functions (seven original functions plus five
+   custom-agent plane functions);
 5. run a sample `score_claim('CLM-1001')` query.
 
 The sample is intentionally small enough to understand in one sitting. It is
 not a statistically meaningful fraud dataset.
 
-### 4.2 Functions exposed to the Supervisor
+### 4.2 Functions exposed to the Supervisors
 
-The Supervisor is connected to six read-only functions:
+The existing native Supervisor is connected to six read-only functions:
 
 | Function | Input | Output |
 |---|---|---|
@@ -314,6 +315,25 @@ The seventh function, `score_claim`, is used internally by
 `get_claim_snapshot` and is not separately attached to the Supervisor. This
 keeps the tool surface small while still returning the score.
 
+The custom LangGraph Supervisor uses the same governed function style through
+direct Statement Execution adapters. Its bundle grants `EXECUTE` on the full
+read-only surface below so the router can choose planes without receiving raw
+table access:
+
+| Custom plane | Functions queried |
+|---|---|
+| Entity | `get_claim_entities` |
+| Structured claim | `get_claim_snapshot` |
+| Knowledge graph | `get_claim_network` |
+| Documents | `search_claim_documents` |
+| Context / memory | `get_case_memory` |
+| Business knowledge | `get_business_terms`, `get_business_rules` |
+| Models / rules | `evaluate_claim_rules`, `score_claim`, `get_model_metadata` |
+| Governance | `get_governance_controls`, `get_audit_events` |
+
+The custom agent does not automatically call the MCP write tool. Its optional
+`external_mcp` plane calls only `decode_vin` after a VIN is present.
+
 There is also a pre-existing `system.ai.python_exec` Supervisor tool. It is not
 needed for the normal insurance investigation and is not the source of truth for
 the POC data.
@@ -326,17 +346,17 @@ and return the narrow result needed by the Supervisor.
 
 | UC table | Data in the table | Current function dependency |
 |---|---|---|
-| `entities` | Canonical IDs and attributes for people, claims, policies, vehicles, addresses, and providers | Seeded reference layer; no current exposed function joins it yet |
+| `entities` | Canonical IDs and attributes for people, claims, policies, vehicles, addresses, and providers | `get_claim_entities` |
 | `graph_edges` | Typed relationships such as `REPAIRED_BY`, `LOSS_AT`, and `SHARES_PHONE_WITH`, plus evidence | `get_claim_network` |
 | `claims` | Normalized claim facts: policy, claimant, vehicle, provider, dates, amount, type, status, description | `get_claim_snapshot`; also joined by `evaluate_claim_rules` |
 | `claim_features` | Derived rule inputs such as policy age, claim count, VIN mismatch, and provider watchlist | `evaluate_claim_rules` |
-| `business_terms` | Business glossary: risk signal, SIU referral, adverse action, case memory | Seeded reference layer; no current exposed function reads it |
-| `business_rules` | Active rule IDs, names, weights, descriptions, and versions | `evaluate_claim_rules` |
+| `business_terms` | Business glossary: risk signal, SIU referral, adverse action, case memory | `get_business_terms` |
+| `business_rules` | Active rule IDs, names, weights, descriptions, and versions | `evaluate_claim_rules`; `get_business_rules` |
 | `claim_documents` | Claim document snippets, type, timestamp, content, and source URI | `search_claim_documents` |
 | `case_memory` | Attributed investigator notes and outcomes with confidence | `get_case_memory` reads it; `remember_case_note` writes it after explicit user request |
-| `model_registry` | Scorer ID, version, model type, tier thresholds, and active flag | Seeded metadata layer; current POC scorer keeps its thresholds/version in the SQL function |
+| `model_registry` | Scorer ID, version, model type, tier thresholds, and active flag | `get_model_metadata`; current scorer also returns its version |
 | `governance_policies` | Mandatory response and action controls | `get_governance_controls` |
-| `audit_events` | POC action/bootstrap audit records | Seeded audit location; no current exposed read function |
+| `audit_events` | POC action/bootstrap audit records | `get_audit_events` |
 
 The current function dependency chain is:
 
@@ -356,6 +376,11 @@ get_claim_network       --> graph_edges
 search_claim_documents  --> claim_documents
 get_case_memory         --> case_memory
 get_governance_controls --> governance_policies
+get_claim_entities      --> entities + graph_edges
+get_business_terms      --> business_terms
+get_business_rules      --> business_rules
+get_model_metadata      --> model_registry
+get_audit_events        --> audit_events
 ```
 
 For example, this direct SQL call queries a governed function, not a raw table:
@@ -445,6 +470,37 @@ For this POC:
   a note;
 - an MCP `503` is not an approval prompt—it means the App endpoint is currently
   unavailable.
+
+### 5.4 Custom supervisor loop
+
+The custom agent lives under `custom_agent/` and is deployed as a separate App
+named `insurance-fraud-supervisor-poc`. It uses the MLflow ResponsesAgent
+server surface so a future frontend can call `/responses` directly.
+
+Its LangGraph is intentionally bounded and stateless per request:
+
+```text
+user request
+    |
+    v
+decide: model proposes enough/not enough + next plane names
+    |
+    v
+validate: Python allowlist, dependencies, de-duplication, budgets
+    |
+    +--> synthesize --> final evidence-led answer
+    |
+    +--> query selected UC-function/MCP adapters
+             |
+             +----------> decide again
+```
+
+The code forces a claim snapshot and governance controls before a claim answer,
+limits each round to three planes, limits the request to four query rounds and
+ten total planes, and refuses external VIN lookup until a VIN is available.
+Model routing failure falls back to deterministic keyword routing; a failed
+plane is recorded as unavailable evidence rather than crashing the entire
+answer. The custom App never automatically calls `remember_case_note`.
 
 ## 6. What happens for `CLM-1001`
 
@@ -563,8 +619,13 @@ database permission.
 databricks.yml                 Bundle name, target, workspace, variables
 resources/setup.job.yml        SQL bootstrap job
 resources/fraud_mcp.app.yml    MCP Databricks App resource
+resources/custom_agent.app.yml Custom supervisor App and permissions
 sql/bootstrap.sql              Tables, seed data, functions, audit row
 supervisor/instructions.md     Supervisor behavior contract
+custom_agent/server/agent.py   LangGraph loop and Responses handlers
+custom_agent/server/plane_registry.py  Plane allowlist and routing validation
+custom_agent/server/uc_tools.py        Parameterized UC-function adapter
+custom_agent/server/mcp_tools.py       Read-only MCP adapter
 app/app.yaml                   App command and environment bindings
 app/pyproject.toml             Python package and dependencies
 app/server/app.py              FastMCP + FastAPI HTTP application
@@ -582,7 +643,12 @@ databricks bundle validate --target dev --profile POC
 databricks bundle deploy --target dev --profile POC
 databricks bundle run bootstrap_fraud_memory --target dev --profile POC
 databricks bundle run fraud_mcp --target dev --profile POC
+databricks bundle run supervisor_agent --target dev --profile POC
 ```
+
+The native Supervisor setup remains separate. The custom App is queried through
+its `/responses` endpoint with a Databricks OAuth token; see the repository
+`README.md` for the complete curl example and local development command.
 
 The bootstrap job creates or refreshes the synthetic Delta layer. The App
 resource deployment uploads the `app/` source, installs dependencies, starts
@@ -728,8 +794,13 @@ Use these files when changing the POC:
 - `supervisor/instructions.md` — Supervisor workflow and response contract;
 - `resources/setup.job.yml` — bootstrap job resource;
 - `resources/fraud_mcp.app.yml` — App resource and permissions;
+- `resources/custom_agent.app.yml` — custom supervisor App resource and permissions;
 - `app/server/tools.py` — MCP tool behavior;
 - `app/server/app.py` — MCP HTTP surface;
+- `custom_agent/server/agent.py` — bounded LangGraph loop and Responses API handlers;
+- `custom_agent/server/plane_registry.py` — plane allowlist and safety validation;
+- `custom_agent/server/uc_tools.py` — parameterized UC function calls;
+- `custom_agent/server/mcp_tools.py` — existing MCP App adapter;
 - `app/app.yaml` — App startup command and environment bindings;
 - `databricks.yml` — bundle target and variables;
 - `AUTH_SETUP.md` — authentication notes;

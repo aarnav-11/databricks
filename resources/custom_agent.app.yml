@@ -1,0 +1,153 @@
+resources:
+  apps:
+    supervisor_agent:
+      name: insurance-fraud-supervisor-poc
+      description: Custom bounded-loop supervisor for the insurance fraud POC.
+      source_code_path: ../custom_agent
+      config:
+        command: ["uv", "run", "start-server"]
+        env:
+          - name: WAREHOUSE_ID
+            value_from: supervisor-warehouse
+          - name: MLFLOW_TRACKING_URI
+            value: databricks
+          - name: MLFLOW_REGISTRY_URI
+            value: databricks-uc
+          - name: FRAUD_CATALOG
+            value: ${var.catalog}
+          - name: FRAUD_SCHEMA
+            value: ${var.schema}
+          - name: MODEL_ENDPOINT
+            value: ${var.model_endpoint}
+          - name: MCP_APP_NAME
+            value: mcp-insurance-fraud-poc
+      resources:
+        - name: supervisor-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: supervisor-model
+          serving_endpoint:
+            name: ${var.model_endpoint}
+            permission: CAN_QUERY
+        - name: supervisor-mcp-app
+          app:
+            name: mcp-insurance-fraud-poc
+            permission: CAN_USE
+        - name: claim-snapshot-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_claim_snapshot
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: claim-rules-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.evaluate_claim_rules
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: claim-score-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.score_claim
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: claim-entities-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_claim_entities
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: claim-network-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_claim_network
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: claim-documents-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.search_claim_documents
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: case-memory-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_case_memory
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: business-terms-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_business_terms
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: business-rules-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_business_rules
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: model-metadata-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_model_metadata
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: governance-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_governance_controls
+            securable_type: FUNCTION
+            permission: EXECUTE
+        - name: audit-events-function
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.get_audit_events
+            securable_type: FUNCTION
+            permission: EXECUTE
+        # SQL functions run with the caller's read permissions in this POC.
+        # The agent still receives only the function-shaped results above.
+        - name: entities-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.entities
+            securable_type: TABLE
+            permission: SELECT
+        - name: graph-edges-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.graph_edges
+            securable_type: TABLE
+            permission: SELECT
+        - name: claims-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.claims
+            securable_type: TABLE
+            permission: SELECT
+        - name: claim-features-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.claim_features
+            securable_type: TABLE
+            permission: SELECT
+        - name: business-terms-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.business_terms
+            securable_type: TABLE
+            permission: SELECT
+        - name: business-rules-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.business_rules
+            securable_type: TABLE
+            permission: SELECT
+        - name: claim-documents-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.claim_documents
+            securable_type: TABLE
+            permission: SELECT
+        - name: case-memory-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.case_memory
+            securable_type: TABLE
+            permission: SELECT
+        - name: model-registry-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.model_registry
+            securable_type: TABLE
+            permission: SELECT
+        - name: governance-policies-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.governance_policies
+            securable_type: TABLE
+            permission: SELECT
+        - name: audit-events-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.audit_events
+            securable_type: TABLE
+            permission: SELECT

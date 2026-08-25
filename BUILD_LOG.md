@@ -162,3 +162,35 @@ Keychain; no access token or client secret is stored in this repository.
 
 These limits are intentional: the sample demonstrates the memory architecture
 and orchestration pattern without pretending to be a deployable fraud decision system.
+
+## Custom supervisor iteration (2026-08-25)
+
+The side-by-side custom supervisor App was implemented and deployed for the POC:
+
+- App: `insurance-fraud-supervisor-poc`
+- URL: `https://insurance-fraud-supervisor-poc-7474651884617029.aws.databricksapps.com`
+- Model endpoint: `databricks-gpt-oss-120b`
+- MLflow experiment: `/Users/aarnav11@g.ucla.edu/insurance-fraud-supervisor-poc`
+  (ID `3493327909184567`)
+- Bootstrap run: `520603578212476` (successful; the UC function surface now has
+  12 governed functions)
+- Active deployment: `01f1a0c0a43b16d8a5a2f30842d60cf6` (successful)
+- App state: `RUNNING`; compute state: `ACTIVE`
+
+The custom agent uses a bounded LangGraph loop. It extracts a claim ID, asks the
+router whether more evidence is needed, validates the requested planes in Python,
+queries the selected UC functions, reassesses, and synthesizes a cited answer or
+asks for the missing claim ID. External VIN lookup is an explicit, read-only
+plane; memory writes are not in the automatic plane allowlist.
+
+End-to-end checks passed through `/responses`:
+
+1. `What can you investigate?` returned HTTP 200 and requested a claim ID.
+2. A `CLM-1001` triage request returned HTTP 200 with score `100 (HIGH)`, rules
+   `R001, R002, R003, R004, R005, R007`, document evidence `DOC-1001-A` and
+   `DOC-1001-B`, and a human-review recommendation.
+
+The App resource file intentionally binds 16 resources, staying within the
+Databricks App resource limit. The custom agent receives the governed function
+surface rather than direct table bindings; each adapter invokes parameterized
+Unity Catalog SQL functions through Statement Execution.

@@ -47,6 +47,19 @@ databricks bundle validate --target dev --profile POC
 databricks bundle deploy --target dev --profile POC
 ```
 
+The checked-in `mlflow_experiment_id` default is the experiment used by this
+workspace. In another workspace, create a user-owned experiment first and
+pass its returned ID to every bundle command:
+
+```bash
+databricks experiments create-experiment \
+  /Users/<your-user>/insurance-fraud-supervisor-poc \
+  --profile POC --output json
+
+databricks bundle validate --target dev --profile POC \
+  --var mlflow_experiment_id=<experiment-id>
+```
+
 Bootstrap the synthetic tables/functions, then start the Apps:
 
 ```bash
@@ -89,6 +102,10 @@ uv run start-server
 The local server exposes the same Responses-compatible API on port 8000. Local
 execution uses the authenticated Databricks user; the deployed App uses its
 Databricks App service principal and the resource bindings above.
+
+The App pins Python to the 3.12–3.13 range because one transitive dependency
+used by the Databricks agent runtime does not ship a Python 3.14 wheel in this
+POC environment.
 
 ## Safety and POC boundaries
 

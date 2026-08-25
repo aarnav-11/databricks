@@ -83,11 +83,21 @@ def _jsonable(value: Any) -> Any:
 def _message_text(message: Any) -> str:
     content = getattr(message, "content", message)
     if isinstance(content, str):
-        return content.strip()
+        stripped = content.strip()
+        if stripped.startswith("["):
+            try:
+                parsed = json.loads(stripped)
+            except json.JSONDecodeError:
+                parsed = None
+            if isinstance(parsed, list):
+                return _message_text(parsed)
+        return stripped
     if isinstance(content, list):
         parts: list[str] = []
         for item in content:
             if isinstance(item, dict):
+                if item.get("type") in {"reasoning", "reasoning_summary"}:
+                    continue
                 text = item.get("text") or item.get("content")
             else:
                 text = getattr(item, "text", None)
@@ -129,7 +139,7 @@ def _build_model() -> Any:
     from databricks_langchain import ChatDatabricks
 
     return ChatDatabricks(
-        endpoint=os.getenv("MODEL_ENDPOINT", "databricks-claude-sonnet-4-5"),
+        endpoint=os.getenv("MODEL_ENDPOINT", "databricks-gpt-oss-120b"),
     )
 
 
@@ -258,7 +268,7 @@ User question:
 Claim identifier: {state.get('claim_id')}
 Already queried planes: {state.get('queried_planes', [])}
 Current evidence JSON:
-{_compact_evidence(state.get('evidence', {{}}))}
+{_compact_evidence(state.get('evidence', {}))}
 
 Allowed planes:
 {plane_catalog()}
@@ -427,7 +437,7 @@ User question: {state['question']}
 Claim: {claim_id}
 Loop stop reason: {state.get('stop_reason')}
 Evidence retrieved from governed adapters:
-{_compact_evidence(state.get('evidence', {{}}))}
+{_compact_evidence(state.get('evidence', {}))}
 
 Response rules:
 - Distinguish facts, deterministic risk signals, external corroboration, and

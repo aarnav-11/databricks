@@ -7,11 +7,13 @@ env:
     value: databricks
   - name: MLFLOW_REGISTRY_URI
     value: databricks-uc
+  - name: MLFLOW_EXPERIMENT_ID
+    value: "3493327909184567"
   - name: FRAUD_CATALOG
     value: workspace
   - name: FRAUD_SCHEMA
     value: insurance_fraud_poc
   - name: MODEL_ENDPOINT
-    value: databricks-claude-sonnet-4-5
+    value: databricks-gpt-oss-120b
   - name: MCP_APP_NAME
     value: mcp-insurance-fraud-poc

@@ -13,6 +13,8 @@ resources:
             value: databricks
           - name: MLFLOW_REGISTRY_URI
             value: databricks-uc
+          - name: MLFLOW_EXPERIMENT_ID
+            value: ${var.mlflow_experiment_id}
           - name: FRAUD_CATALOG
             value: ${var.catalog}
           - name: FRAUD_SCHEMA
@@ -22,6 +24,10 @@ resources:
           - name: MCP_APP_NAME
             value: mcp-insurance-fraud-poc
       resources:
+        - name: supervisor-experiment
+          experiment:
+            experiment_id: ${var.mlflow_experiment_id}
+            permission: CAN_MANAGE
         - name: supervisor-warehouse
           sql_warehouse:
             id: ${var.warehouse_id}
@@ -94,60 +100,3 @@ resources:
             securable_full_name: ${var.catalog}.${var.schema}.get_audit_events
             securable_type: FUNCTION
             permission: EXECUTE
-        # SQL functions run with the caller's read permissions in this POC.
-        # The agent still receives only the function-shaped results above.
-        - name: entities-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.entities
-            securable_type: TABLE
-            permission: SELECT
-        - name: graph-edges-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.graph_edges
-            securable_type: TABLE
-            permission: SELECT
-        - name: claims-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.claims
-            securable_type: TABLE
-            permission: SELECT
-        - name: claim-features-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.claim_features
-            securable_type: TABLE
-            permission: SELECT
-        - name: business-terms-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.business_terms
-            securable_type: TABLE
-            permission: SELECT
-        - name: business-rules-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.business_rules
-            securable_type: TABLE
-            permission: SELECT
-        - name: claim-documents-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.claim_documents
-            securable_type: TABLE
-            permission: SELECT
-        - name: case-memory-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.case_memory
-            securable_type: TABLE
-            permission: SELECT
-        - name: model-registry-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.model_registry
-            securable_type: TABLE
-            permission: SELECT
-        - name: governance-policies-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.governance_policies
-            securable_type: TABLE
-            permission: SELECT
-        - name: audit-events-table
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.audit_events
-            securable_type: TABLE
-            permission: SELECT

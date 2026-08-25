@@ -513,7 +513,9 @@ answer. The custom App never automatically calls `remember_case_note`.
 The custom App root serves `custom_agent/server/ui.py`, a deliberately small
 same-origin UI. A logged-in user can submit a claim question, view the answer
 as a document-style triage memo, and expand the safe trace or raw trace JSON.
-The `/responses` API remains available for an application-owned frontend.
+The trace begins with a basic visual path from request through decision and
+query steps to synthesis; the `/responses` API remains available for an
+application-owned frontend.
 
 The `supervisor_eval` bundle job runs the same graph identity against the
 synthetic cases in `eval/test_cases.json`. It uses `mlflow.genai.evaluate()`

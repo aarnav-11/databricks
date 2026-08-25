@@ -91,7 +91,8 @@ workspace URL:
 Opening the App root in a logged-in browser displays the document-style memo UI.
 The agent API is available at `/responses`, and `/health` is a lightweight
 health check. The UI submits `custom_inputs.debug_trace=true` and formats the
-returned safe orchestration trace below the memo.
+returned safe orchestration trace below the memo, including a basic visual path
+from request through decisions and queries to synthesis.
 
 Current POC UI:
 

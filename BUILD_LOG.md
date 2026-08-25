@@ -174,7 +174,7 @@ The side-by-side custom supervisor App was implemented and deployed for the POC:
   (ID `3493327909184567`)
 - Bootstrap run: `520603578212476` (successful; the UC function surface now has
   12 governed functions)
-- Active deployment: `01f1a0c2a4ec11b1b470f116805856e1` (successful)
+- Active deployment: `01f1a0c8f88d1f4a985736b6165cf330` (successful)
 - App state: `RUNNING`; compute state: `ACTIVE`
 
 The custom agent uses a bounded LangGraph loop. It extracts a claim ID, asks the
@@ -218,14 +218,15 @@ continued to return HTTP 200.
 The custom App root now serves a small browser UI for the POC:
 
 - UI: `https://insurance-fraud-supervisor-poc-7474651884617029.aws.databricksapps.com`
-- App deployment: `01f1a0c618cd158c99a81329ff916eb0`
+- App deployment: `01f1a0c8f88d1f4a985736b6165cf330`
 - `/` returned HTTP 200 with the document-style memo UI;
 - `/health` returned HTTP 200;
 - a trace-enabled `/responses` clarification request returned HTTP 200.
 
 The UI submits the same Responses API request an application-owned frontend
-would submit, then renders the answer as a memo with metadata, a collapsible
-decision/query/synthesis timeline, and raw trace JSON. The trace is explicitly
+would submit, then renders the answer as a memo with metadata, a visual path
+diagram, a collapsible decision/query/synthesis timeline, and raw trace JSON.
+The trace is explicitly
 limited to safe orchestration metadata (routing decisions, planes, functions,
 statuses, row counts, and stop reasons); it does not expose private model
 chain-of-thought or hidden prompts.

@@ -57,6 +57,20 @@ def render_ui() -> str:
     .trace-label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
     .trace-value { font-weight:650; }
     .call { background:#f8fafc; border-radius:7px; margin-top:8px; padding:8px 10px; }
+    .diagram { background:#f8fafc; border:1px solid var(--line); border-radius:10px; margin:0 0 18px; padding:14px; }
+    .diagram-title { color:var(--muted); font-size:12px; font-weight:750; letter-spacing:.06em; margin-bottom:10px; text-transform:uppercase; }
+    .diagram-step { display:grid; grid-template-columns:22px minmax(0,1fr); gap:10px; min-height:62px; }
+    .diagram-rail { display:flex; justify-content:center; position:relative; }
+    .diagram-rail::before { background:#cbd6e4; content:""; left:10px; position:absolute; top:14px; bottom:-14px; width:2px; }
+    .diagram-step:last-child .diagram-rail::before { display:none; }
+    .diagram-dot { background:var(--blue); border:3px solid #dfe8ff; border-radius:50%; height:14px; margin-top:5px; position:relative; width:14px; z-index:1; }
+    .diagram-node { background:#fff; border:1px solid var(--line); border-left:3px solid #94a3b8; border-radius:8px; margin-bottom:10px; padding:9px 11px; }
+    .diagram-node.decision { border-left-color:var(--blue); }
+    .diagram-node.query { border-left-color:#7a4ed1; }
+    .diagram-node.synthesis { border-left-color:var(--green); }
+    .diagram-kicker { color:var(--muted); font-size:11px; letter-spacing:.05em; text-transform:uppercase; }
+    .diagram-main { font-weight:750; margin-top:2px; }
+    .diagram-detail { color:var(--muted); font-size:13px; margin-top:2px; overflow-wrap:anywhere; }
     .raw { background:#111827; border-radius:9px; color:#d9e4f2; font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
       max-height:360px; overflow:auto; padding:14px; white-space:pre-wrap; }
     @media (max-width:640px) { .top { display:block; } .badge { display:inline-block; margin-top:16px; } .answer,.doc-head,.trace-wrap { padding-left:18px; padding-right:18px; } }
@@ -96,6 +110,7 @@ def render_ui() -> str:
         <details open>
           <summary>Supervisor orchestration trace</summary>
           <p class="trace-note">This is a safe execution trace: routing decisions, planes, functions, statuses, row counts, and stop reasons. It does not expose private model chain-of-thought or hidden prompts.</p>
+          <div class="diagram" id="trace-diagram" role="list" aria-label="Supervisor trace path"></div>
           <div id="timeline"></div>
           <details>
             <summary>Raw trace JSON</summary>
@@ -113,6 +128,7 @@ def render_ui() -> str:
     const result = document.getElementById("result");
     const answer = document.getElementById("answer");
     const meta = document.getElementById("meta");
+    const diagram = document.getElementById("trace-diagram");
     const timeline = document.getElementById("timeline");
     const rawTrace = document.getElementById("raw-trace");
 
@@ -144,6 +160,23 @@ def render_ui() -> str:
         return `<div class="call"><strong>${escapeHtml(item.plane || "plane")}</strong> · ${escapeHtml(item.status || "unknown")}${calls}</div>`;
       }).join("");
     }
+    function renderDiagram(trace) {
+      const steps = [{kind:"request", label:"Request", main:trace.claim_id ? `Claim ${trace.claim_id}` : "Claim clarification", detail:"User question enters the supervisor"}];
+      (trace.events || []).forEach(event => {
+        const type = event.event || "event";
+        if (type === "decision") {
+          const planes = list(event.accepted_planes || event.requested_planes);
+          steps.push({kind:"decision", label:`Decision · iteration ${event.iteration}`, main:event.enough_information ? "Enough information" : "Needs more evidence", detail:planes === "none" ? "No new planes selected" : `Accepted planes: ${planes}`});
+        } else if (type === "query") {
+          const planes = list(event.planes);
+          const calls = (event.results || []).reduce((total, item) => total + (item.calls || []).length, 0);
+          steps.push({kind:"query", label:`Query · iteration ${event.iteration}`, main:planes === "none" ? "No planes queried" : planes, detail:calls ? `${calls} governed function/tool call${calls === 1 ? "" : "s"}` : "No calls recorded"});
+        } else if (type === "synthesis") {
+          steps.push({kind:"synthesis", label:"Synthesis", main:"Memo generated", detail:event.stop_reason || "Supervisor completed"});
+        }
+      });
+      return `<div class="diagram-title">Trace path</div>` + steps.map(step => `<div class="diagram-step" role="listitem"><div class="diagram-rail"><div class="diagram-dot"></div></div><div class="diagram-node ${escapeHtml(step.kind)}"><div class="diagram-kicker">${escapeHtml(step.label)}</div><div class="diagram-main">${escapeHtml(step.main)}</div><div class="diagram-detail">${escapeHtml(step.detail)}</div></div></div>`).join("");
+    }
     function renderTrace(trace) {
       const events = trace.events || [];
       return events.map(event => {
@@ -165,9 +198,11 @@ def render_ui() -> str:
       meta.innerHTML = "";
       if (trace) {
         [value("Claim", claim), value("Iterations", trace.iterations), value("Stop reason", trace.stop_reason || "completed"), value("Planes queried", list(trace.queried_planes))].forEach(item => { meta.insertAdjacentHTML("beforeend", item); });
+        diagram.innerHTML = renderDiagram(trace);
         timeline.innerHTML = renderTrace(trace);
         rawTrace.textContent = JSON.stringify(trace, null, 2);
       } else {
+        diagram.innerHTML = "";
         timeline.innerHTML = "<p class=\"trace-note\">No trace returned.</p>";
         rawTrace.textContent = "";
       }

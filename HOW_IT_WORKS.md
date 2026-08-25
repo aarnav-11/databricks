@@ -265,6 +265,12 @@ For a normal investigation, it is instructed to:
 The model may choose the exact tool-call order, but the response contract and
 tool boundaries constrain what it can claim and what it can write.
 
+The custom supervisor App adds a browser-facing document view at its root URL.
+It sends the same request to `/responses`, renders the assistant answer as a
+memo, and expands the safe orchestration trace into decision, query, and
+synthesis cards. The trace shows execution metadata only; it does not expose
+private model chain-of-thought or hidden prompts.
+
 ## 4. Delta tables and SQL functions
 
 ### 4.1 Tables
@@ -502,6 +508,19 @@ Model routing failure falls back to deterministic keyword routing; a failed
 plane is recorded as unavailable evidence rather than crashing the entire
 answer. The custom App never automatically calls `remember_case_note`.
 
+### 5.5 Custom UI and evaluation harness
+
+The custom App root serves `custom_agent/server/ui.py`, a deliberately small
+same-origin UI. A logged-in user can submit a claim question, view the answer
+as a document-style triage memo, and expand the safe trace or raw trace JSON.
+The `/responses` API remains available for an application-owned frontend.
+
+The `supervisor_eval` bundle job runs the same graph identity against the
+synthetic cases in `eval/test_cases.json`. It uses `mlflow.genai.evaluate()`
+and the `supervisor_contract` scorer to check claim IDs, selected planes,
+function calls, response language, trace presence, and clarification behavior.
+The harness does not write case memory.
+
 ## 6. What happens for `CLM-1001`
 
 This is the recommended end-to-end demonstration claim.
@@ -623,9 +642,13 @@ resources/custom_agent.app.yml Custom supervisor App and permissions
 sql/bootstrap.sql              Tables, seed data, functions, audit row
 supervisor/instructions.md     Supervisor behavior contract
 custom_agent/server/agent.py   LangGraph loop and Responses handlers
+custom_agent/server/ui.py       Document-style browser UI and trace renderer
 custom_agent/server/plane_registry.py  Plane allowlist and routing validation
 custom_agent/server/uc_tools.py        Parameterized UC-function adapter
 custom_agent/server/mcp_tools.py       Read-only MCP adapter
+eval/test_cases.json            Synthetic contract cases
+eval/evaluate_supervisor.py     MLflow evaluation runner and scorer
+resources/evaluation.job.yml    Serverless evaluation job
 app/app.yaml                   App command and environment bindings
 app/pyproject.toml             Python package and dependencies
 app/server/app.py              FastMCP + FastAPI HTTP application
@@ -644,6 +667,7 @@ databricks bundle deploy --target dev --profile POC
 databricks bundle run bootstrap_fraud_memory --target dev --profile POC
 databricks bundle run fraud_mcp --target dev --profile POC
 databricks bundle run supervisor_agent --target dev --profile POC
+databricks bundle run supervisor_eval --target dev --profile POC
 ```
 
 The native Supervisor setup remains separate. The custom App is queried through
@@ -676,7 +700,13 @@ The completed POC verification found:
 - MCP `health`, `tools/list`, and direct `decode_vin` calls working;
 - a full Supervisor investigation using all six governed functions;
 - a Supervisor-to-MCP VIN call with the approval handshake;
-- no case-memory write during testing.
+- no case-memory write during testing;
+- the custom App root UI, `/health`, and a trace-enabled `/responses` request;
+- the evaluation harness with three synthetic cases and a 100% contract pass rate.
+
+The evaluation job is also available from the Databricks Jobs page as
+`insurance-fraud-supervisor-evaluation`. It records its MLflow evaluation run
+in the custom supervisor experiment.
 
 ## 9. Testing the agent
 
@@ -798,9 +828,13 @@ Use these files when changing the POC:
 - `app/server/tools.py` — MCP tool behavior;
 - `app/server/app.py` — MCP HTTP surface;
 - `custom_agent/server/agent.py` — bounded LangGraph loop and Responses API handlers;
+- `custom_agent/server/ui.py` — document-style UI and safe trace formatting;
 - `custom_agent/server/plane_registry.py` — plane allowlist and safety validation;
 - `custom_agent/server/uc_tools.py` — parameterized UC function calls;
 - `custom_agent/server/mcp_tools.py` — existing MCP App adapter;
+- `eval/test_cases.json` — synthetic supervisor contract cases;
+- `eval/evaluate_supervisor.py` — MLflow evaluation runner and scorer;
+- `resources/evaluation.job.yml` — serverless evaluation job;
 - `app/app.yaml` — App startup command and environment bindings;
 - `databricks.yml` — bundle target and variables;
 - `AUTH_SETUP.md` — authentication notes;

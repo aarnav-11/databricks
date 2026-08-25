@@ -1,0 +1,37 @@
+resources:
+  jobs:
+    supervisor_eval:
+      name: insurance-fraud-supervisor-evaluation
+      description: Runs the synthetic supervisor contract and records MLflow evaluation traces.
+      tasks:
+        - task_key: evaluate_supervisor
+          spark_python_task:
+            python_file: ../eval/evaluate_supervisor.py
+            parameters:
+              - --warehouse-id
+              - ${var.warehouse_id}
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --model-endpoint
+              - ${var.model_endpoint}
+              - --mcp-app-name
+              - mcp-insurance-fraud-poc
+              - --mlflow-experiment-id
+              - ${var.mlflow_experiment_id}
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "2"
+            dependencies:
+              - "mlflow[databricks]>=3.10.0"
+              - "databricks-sdk>=0.60.0"
+              - "databricks-agents>=1.9.3"
+              - "databricks-langchain>=0.17.0"
+              - "databricks-mcp"
+              - "langchain-core>=0.3.0"
+              - "langgraph>=1.1.0"
+              - "pydantic>=2.0.0"
+              - "python-dotenv>=1.0.0"

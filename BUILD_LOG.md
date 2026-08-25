@@ -209,6 +209,36 @@ the trace and completed after the snapshot, governance, and entities planes.
 The first deployment intentionally enabled MLflow's optional chat proxy even
 though no embedded chat UI was present. That made the browser root proxy to the
 unused local port 3000 and return HTTP 503 (`Service unavailable`). The proxy
-was removed and the App now serves a direct root health payload. After the
-follow-up deployment, `/` and `/health` returned HTTP 200 and `/responses`
+was removed and the App now serves its document-style UI at the root. After
+the follow-up deployment, `/` and `/health` returned HTTP 200 and `/responses`
 continued to return HTTP 200.
+
+### Document UI and evaluation harness (2026-08-25)
+
+The custom App root now serves a small browser UI for the POC:
+
+- UI: `https://insurance-fraud-supervisor-poc-7474651884617029.aws.databricksapps.com`
+- App deployment: `01f1a0c618cd158c99a81329ff916eb0`
+- `/` returned HTTP 200 with the document-style memo UI;
+- `/health` returned HTTP 200;
+- a trace-enabled `/responses` clarification request returned HTTP 200.
+
+The UI submits the same Responses API request an application-owned frontend
+would submit, then renders the answer as a memo with metadata, a collapsible
+decision/query/synthesis timeline, and raw trace JSON. The trace is explicitly
+limited to safe orchestration metadata (routing decisions, planes, functions,
+statuses, row counts, and stop reasons); it does not expose private model
+chain-of-thought or hidden prompts.
+
+The evaluation harness was deployed as the serverless bundle job
+`insurance-fraud-supervisor-evaluation`:
+
+- Job ID: `629429171419536`
+- Job run ID: `1055175224433068`
+- [Job run](https://dbc-d0355882-ae53.cloud.databricks.com/jobs/629429171419536/runs/1055175224433068?o=7474651884617029)
+- MLflow evaluation run: `4b0c89bd29a24eab96ff4905cb801ac7`
+- [MLflow evaluation](https://dbc-d0355882-ae53.cloud.databricks.com/ml/experiments/3493327909184567/evaluation-runs?selectedRunUuid=4b0c89bd29a24eab96ff4905cb801ac7)
+
+All three synthetic cases passed the `supervisor_contract` scorer (contract
+pass rate `1.0`). The job evaluates the bundle's supervisor graph directly,
+records MLflow traces and scorer results, and does not write case memory.

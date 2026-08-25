@@ -3,7 +3,10 @@
 from pathlib import Path
 
 from dotenv import load_dotenv
+from fastapi.responses import HTMLResponse
 from mlflow.genai.agent_server import AgentServer
+
+from server.ui import render_ui
 
 load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env", override=True)
 
@@ -17,12 +20,8 @@ app = agent_server.app
 
 
 @app.get("/", include_in_schema=False)
-def root() -> dict[str, str]:
-    return {
-        "status": "healthy",
-        "service": "insurance-fraud-supervisor-poc",
-        "responses_endpoint": "/responses",
-    }
+def root() -> HTMLResponse:
+    return HTMLResponse(render_ui())
 
 
 def main() -> None:

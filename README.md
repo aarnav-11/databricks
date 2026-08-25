@@ -26,6 +26,8 @@ conversation history and send it back with each `/responses` request.
 
 - `custom_agent/`: the custom Databricks App and LangGraph supervisor.
 - `resources/custom_agent.app.yml`: App resource permissions and configuration.
+- `eval/`: synthetic supervisor contract cases and the MLflow evaluation runner.
+- `resources/evaluation.job.yml`: serverless Databricks evaluation job.
 - `app/`: the existing MCP App; it is not repurposed by the custom agent.
 - `sql/bootstrap.sql`: synthetic Delta planes and governed UC functions.
 - `supervisor/instructions.md`: instructions for the existing native Supervisor.
@@ -66,10 +68,15 @@ Bootstrap the synthetic tables/functions, then start the Apps:
 databricks bundle run bootstrap_fraud_memory --target dev --profile POC
 databricks bundle run fraud_mcp --target dev --profile POC
 databricks bundle run supervisor_agent --target dev --profile POC
+databricks bundle run supervisor_eval --target dev --profile POC
 ```
 
 `bundle deploy` uploads/configures the App. `bundle run supervisor_agent` is
 the step that starts or restarts the custom App with the deployed code.
+`bundle run supervisor_eval` runs the synthetic contract against the same
+supervisor graph, records traces and scorer results in the MLflow experiment,
+and fails if a required plane, function, response phrase, or safety contract
+is missing.
 
 The custom App needs a serverless SQL warehouse, a queryable Databricks model
 serving endpoint, `EXECUTE` on the listed UC functions, and `CAN_USE` on
@@ -81,8 +88,14 @@ workspace administrator may still need to approve the deployment.
 The App implements the MLflow Responses API. Use an OAuth token and the App's
 workspace URL:
 
-Opening the App URL in a browser returns a health payload. The agent API is
-available at `/responses`, and `/health` is a lightweight health check.
+Opening the App root in a logged-in browser displays the document-style memo UI.
+The agent API is available at `/responses`, and `/health` is a lightweight
+health check. The UI submits `custom_inputs.debug_trace=true` and formats the
+returned safe orchestration trace below the memo.
+
+Current POC UI:
+
+`https://insurance-fraud-supervisor-poc-7474651884617029.aws.databricksapps.com`
 
 ```bash
 databricks auth token --profile POC
@@ -123,6 +136,20 @@ Databricks App service principal and the resource bindings above.
 The App pins Python to the 3.12–3.13 range because one transitive dependency
 used by the Databricks agent runtime does not ship a Python 3.14 wheel in this
 POC environment.
+
+## Evaluation harness
+
+The harness is intentionally small and deterministic around the model: it
+checks the response contract, required planes and functions, trace presence,
+claim identifiers, human-review language, and clarification behavior. It uses
+`mlflow.genai.evaluate()` with a code-based scorer, so each case produces an
+MLflow evaluation trace and a pass/fail assessment. The cases are in
+`eval/test_cases.json`; add more synthetic cases there as the supervisor grows.
+
+The job runs on serverless Python with the same Databricks SDK, UC-function,
+MCP, LangGraph, and MLflow dependencies as the App. It evaluates the source
+graph in the bundle's deployed workspace identity and does not write case
+memory.
 
 ## Safety and POC boundaries
 

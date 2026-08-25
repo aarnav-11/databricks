@@ -10,8 +10,19 @@ load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env", override=True)
 # Importing the module registers the @invoke and @stream handlers.
 import server.agent  # noqa: E402,F401
 
-agent_server = AgentServer("ResponsesAgent", enable_chat_proxy=True)
+# This App exposes the Responses API directly. There is no embedded chat UI
+# yet, so do not proxy browser requests to the unused port 3000.
+agent_server = AgentServer("ResponsesAgent")
 app = agent_server.app
+
+
+@app.get("/", include_in_schema=False)
+def root() -> dict[str, str]:
+    return {
+        "status": "healthy",
+        "service": "insurance-fraud-supervisor-poc",
+        "responses_endpoint": "/responses",
+    }
 
 
 def main() -> None:

@@ -81,6 +81,9 @@ workspace administrator may still need to approve the deployment.
 The App implements the MLflow Responses API. Use an OAuth token and the App's
 workspace URL:
 
+Opening the App URL in a browser returns a health payload. The agent API is
+available at `/responses`, and `/health` is a lightweight health check.
+
 ```bash
 databricks auth token --profile POC
 

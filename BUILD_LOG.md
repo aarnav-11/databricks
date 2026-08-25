@@ -174,7 +174,7 @@ The side-by-side custom supervisor App was implemented and deployed for the POC:
   (ID `3493327909184567`)
 - Bootstrap run: `520603578212476` (successful; the UC function surface now has
   12 governed functions)
-- Active deployment: `01f1a0c0a43b16d8a5a2f30842d60cf6` (successful)
+- Active deployment: `01f1a0c2a4ec11b1b470f116805856e1` (successful)
 - App state: `RUNNING`; compute state: `ACTIVE`
 
 The custom agent uses a bounded LangGraph loop. It extracts a claim ID, asks the
@@ -194,3 +194,12 @@ The App resource file intentionally binds 16 resources, staying within the
 Databricks App resource limit. The custom agent receives the governed function
 surface rather than direct table bindings; each adapter invokes parameterized
 Unity Catalog SQL functions through Statement Execution.
+
+### Root-route follow-up
+
+The first deployment intentionally enabled MLflow's optional chat proxy even
+though no embedded chat UI was present. That made the browser root proxy to the
+unused local port 3000 and return HTTP 503 (`Service unavailable`). The proxy
+was removed and the App now serves a direct root health payload. After the
+follow-up deployment, `/` and `/health` returned HTTP 200 and `/responses`
+continued to return HTTP 200.

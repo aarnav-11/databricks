@@ -5,6 +5,9 @@ and a side-by-side custom supervisor App. The existing native Databricks
 Supervisor and MCP App remain available; the custom App is the iteration path
 for a future application-owned frontend.
 
+For a from-zero, click-by-click recreation in a different workspace, start with
+[`reproduce.md`](./reproduce.md). This README is the shorter quick-start.
+
 ## What the custom supervisor does
 
 The custom agent is a bounded LangGraph loop:
@@ -32,6 +35,7 @@ conversation history and send it back with each `/responses` request.
 - `sql/bootstrap.sql`: synthetic Delta planes and governed UC functions.
 - `supervisor/instructions.md`: instructions for the existing native Supervisor.
 - `HOW_IT_WORKS.md`: table/function/MCP architecture notes for the original POC.
+- `reproduce.md`: step-by-step clean-workspace recreation guide.
 - `BUILD_LOG.md`: deployment and verification history.
 
 ## Recreate from a clean workspace

@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
 from databricks.sdk import WorkspaceClient
+
+
+def _csv_columns(value: str) -> list[str]:
+    return [column.strip() for column in value.split(",") if column.strip()]
 
 
 def _jsonable(value: Any) -> Any:
@@ -28,10 +33,21 @@ class VectorSearchClient:
         self.workspace_client = workspace_client or WorkspaceClient()
 
     def search(self, *, index_name: str, query_text: str, num_results: int = 10) -> dict[str, Any]:
+        columns = _csv_columns(os.getenv("VECTOR_SEARCH_COLUMNS", ""))
+        query_columns = _csv_columns(os.getenv("VECTOR_SEARCH_QUERY_COLUMNS", ""))
+        if not columns:
+            return {
+                "status": "missing_configuration",
+                "resource": index_name,
+                "operation": "vector_search",
+                "missing": "VECTOR_SEARCH_COLUMNS",
+            }
         try:
             response = self.workspace_client.vector_search_indexes.query_index(
                 index_name=index_name,
+                columns=columns,
                 query_text=query_text,
+                query_columns=query_columns or None,
                 num_results=max(1, min(int(num_results), 50)),
             )
             payload = _jsonable(response)
@@ -41,6 +57,8 @@ class VectorSearchClient:
                 "status": "ok",
                 "resource": index_name,
                 "operation": "vector_search",
+                "columns": columns,
+                "query_columns": query_columns,
                 "row_count": len(rows),
                 "result": payload,
             }

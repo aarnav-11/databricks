@@ -22,6 +22,11 @@ class PlaneRegistryTests(unittest.TestCase):
             "claim_fraud_metrics",
         ):
             self.assertIn(f"valueFrom: {key}", app_yaml)
+        self.assertIn(
+            "value: chunk_id,chunk_to_retrieve,source_path,document_type",
+            app_yaml,
+        )
+        self.assertIn("value: chunk_to_embed", app_yaml)
 
     def test_defaults_match_linked_app_resources(self):
         specs = load_plane_specs("")

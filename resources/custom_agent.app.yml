@@ -25,6 +25,10 @@ resources:
             value_from: policy_360
           - name: VECTOR_SEARCH_INDEX
             value_from: vector-search-index
+          - name: VECTOR_SEARCH_COLUMNS
+            value: chunk_id,chunk_to_retrieve,source_path,document_type
+          - name: VECTOR_SEARCH_QUERY_COLUMNS
+            value: chunk_to_embed
           - name: CLAIM_FRAUD_METRICS_TABLE
             value_from: claim_fraud_metrics
       resources:

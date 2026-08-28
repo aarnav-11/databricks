@@ -75,6 +75,13 @@ SQL. Table names come only from App resource bindings, identifiers are
 validated and quoted, values use SQL statement parameters, and each result is
 bounded.
 
+The current AI Search index is configured to return `chunk_id`,
+`chunk_to_retrieve`, `source_path`, and `document_type`, while searching the
+`chunk_to_embed` text column. `db_chunk_to_embed_vector` is intentionally not
+returned because the embedding array is not useful answer evidence and would
+inflate the model context. Change `VECTOR_SEARCH_COLUMNS` and
+`VECTOR_SEARCH_QUERY_COLUMNS` when another index uses a different schema.
+
 The MCP adapter calls `list_tools()` at runtime. If `MCP_TOOL_NAME` is set, it
 uses that exact tool. Otherwise it considers only tools whose MCP annotations
 or names indicate a read operation, rejects write-like names, and invokes a

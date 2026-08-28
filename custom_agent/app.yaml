@@ -19,5 +19,9 @@ env:
     valueFrom: policy_360
   - name: VECTOR_SEARCH_INDEX
     valueFrom: vector-search-index
+  - name: VECTOR_SEARCH_COLUMNS
+    value: chunk_id,chunk_to_retrieve,source_path,document_type
+  - name: VECTOR_SEARCH_QUERY_COLUMNS
+    value: chunk_to_embed
   - name: CLAIM_FRAUD_METRICS_TABLE
     valueFrom: claim_fraud_metrics

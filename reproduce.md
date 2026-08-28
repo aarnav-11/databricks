@@ -131,12 +131,18 @@ env:
     valueFrom: policy_360
   - name: VECTOR_SEARCH_INDEX
     valueFrom: vector-search-index
+  - name: VECTOR_SEARCH_COLUMNS
+    value: chunk_id,chunk_to_retrieve,source_path,document_type
+  - name: VECTOR_SEARCH_QUERY_COLUMNS
+    value: chunk_to_embed
   - name: CLAIM_FRAUD_METRICS_TABLE
     valueFrom: claim_fraud_metrics
 ```
 
 The right side of each `valueFrom` line must exactly match an App resource key
 created in the next step. Keys are case-sensitive; `LLM` is uppercase.
+The two Vector Search column settings are plain values, not resource keys. Do
+not add `db_chunk_to_embed_vector` to the returned columns.
 
 ## Step 4 — Link the current resources
 
@@ -367,6 +373,7 @@ design should be completed before external users are connected.
 | Table metadata or query is permission denied | Confirm the table is linked with **Can select** and the App identity can use the catalog/schema |
 | Related table says `missing_input` | The earlier evidence did not expose a configured relationship ID; check Step 6 |
 | AI Search returns unavailable | Confirm the exact index is ONLINE and linked with **Can select** |
+| AI Search says `columns` is missing | Upload the current `vector_tools.py`, keep both `VECTOR_SEARCH_*_COLUMNS` settings from Step 3, and redeploy |
 | MCP returns HTTP 503 | Open `mcp-ontobricks-07x`, confirm it is Running, then inspect its logs and downstream dependencies |
 | MCP lists tools but does not call one | Follow Step 9 and pin the confirmed read-only tool |
 | Model query fails | Confirm `databricks-claude-opus-5` is READY and the App has **Can query** |

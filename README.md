@@ -14,6 +14,7 @@ These keys are case-sensitive and must match `custom_agent/app.yaml`.
 
 | Resource type | Databricks resource | App resource key | Code environment variable |
 |---|---|---|---|
+| SQL warehouse | Workspace-selected serverless warehouse | `sql-warehouse` | `WAREHOUSE_ID` |
 | Databricks App | `mcp-ontobricks-07x` | `ontobricks_kg` | `MCP_APP_NAME` |
 | UC table | `dmpipeline-dev.ri_gold.claim_360` | `claim_360` | `CLAIM_TABLE` |
 | UC table | `dmpipeline-dev.ri_gold.party_360` | `party_360` | `PARTY_TABLE` |
@@ -29,20 +30,19 @@ table and the AI Search index.
 
 ## Important: direct table queries need a SQL warehouse
 
-The resource list above authorizes the App service principal to select from the
-tables, but it does not provide compute that can execute SQL. The supervisor no
-longer crashes when `WAREHOUSE_ID` is absent. It starts normally, can use the
-model, AI Search, and MCP App, and records table planes as `unavailable` with a
-clear `missing_resource: WAREHOUSE_ID` trace entry.
-
-To enable all five direct table planes, add one serverless SQL warehouse to the
-App with resource key `sql-warehouse`, then add this entry to
-`custom_agent/app.yaml`:
+The table resources authorize the App service principal to select data, while
+the SQL warehouse provides compute. `custom_agent/app.yaml` now contains this
+required binding:
 
 ```yaml
   - name: WAREHOUSE_ID
     valueFrom: sql-warehouse
 ```
+
+Before deploying, link one serverless SQL warehouse to the App with the exact
+resource key `sql-warehouse` and **Can use**. If it is absent, deployment fails
+resource resolution; older deployments without the binding start but report
+`missing_resource: WAREHOUSE_ID` for every table plane.
 
 ## How the supervisor loop works
 

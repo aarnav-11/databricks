@@ -7,6 +7,8 @@ resources:
       config:
         command: ["uv", "run", "start-server"]
         env:
+          - name: WAREHOUSE_ID
+            value_from: sql-warehouse
           - name: MLFLOW_TRACKING_URI
             value: databricks
           - name: MLFLOW_REGISTRY_URI
@@ -32,6 +34,10 @@ resources:
           - name: CLAIM_FRAUD_METRICS_TABLE
             value_from: claim_fraud_metrics
       resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
         - name: ontobricks_kg
           app:
             name: mcp-ontobricks-07x

@@ -113,6 +113,8 @@ extra nested `custom_agent/custom_agent` directory.
 command: ["uv", "run", "start-server"]
 
 env:
+  - name: WAREHOUSE_ID
+    valueFrom: sql-warehouse
   - name: MLFLOW_TRACKING_URI
     value: databricks
   - name: MLFLOW_REGISTRY_URI
@@ -177,9 +179,9 @@ workspace and that you may grant it to the App identity.
 
 ## Step 5 — Understand the SQL warehouse gap
 
-The eight resources above are enough for the App to start and for the model,
-AI Search index, and MCP App integrations to run. They are not enough to issue
-SQL statements against the five UC tables.
+The eight original resources are not enough to issue SQL statements against
+the five UC tables. Add the warehouse before deploying the current source,
+because `app.yaml` now requires the `sql-warehouse` resource key.
 
 `Can select` is data authorization. A SQL warehouse is the compute that
 executes the query. The supervisor handles this safely: when no warehouse is
@@ -202,14 +204,14 @@ To turn on direct table reads:
 
 7. Save the resource.
 8. Open the uploaded `app.yaml`.
-9. Add these two lines under `env`:
+9. Confirm these two lines already exist under `env`:
 
    ```yaml
      - name: WAREHOUSE_ID
        valueFrom: sql-warehouse
    ```
 
-10. Save `app.yaml` and redeploy in Step 7.
+10. Redeploy in Step 7.
 
 If the team truly cannot provide a SQL warehouse for this POC, leave the code
 as-is. The app remains usable, but any answer must disclose that direct table

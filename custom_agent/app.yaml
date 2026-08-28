@@ -1,6 +1,8 @@
 command: ["uv", "run", "start-server"]
 
 env:
+  - name: WAREHOUSE_ID
+    valueFrom: sql-warehouse
   - name: MLFLOW_TRACKING_URI
     value: databricks
   - name: MLFLOW_REGISTRY_URI

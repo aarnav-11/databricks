@@ -11,6 +11,7 @@ class PlaneRegistryTests(unittest.TestCase):
     def test_app_yaml_binds_every_current_resource_key(self):
         app_yaml = (Path(__file__).parents[1] / "app.yaml").read_text()
 
+        self.assertIn("valueFrom: sql-warehouse", app_yaml)
         for key in (
             "ontobricks_kg",
             "claim_360",

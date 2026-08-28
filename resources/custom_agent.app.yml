@@ -8,95 +8,71 @@ resources:
         command: ["uv", "run", "start-server"]
         env:
           - name: WAREHOUSE_ID
-            value_from: supervisor-warehouse
+            value_from: sql-warehouse
           - name: MLFLOW_TRACKING_URI
             value: databricks
           - name: MLFLOW_REGISTRY_URI
             value: databricks-uc
-          - name: MLFLOW_EXPERIMENT_ID
-            value: ${var.mlflow_experiment_id}
-          - name: FRAUD_CATALOG
-            value: ${var.catalog}
-          - name: FRAUD_SCHEMA
-            value: ${var.schema}
           - name: MODEL_ENDPOINT
-            value: ${var.model_endpoint}
+            value_from: LLM
           - name: MCP_APP_NAME
-            value: mcp-insurance-fraud-poc
+            value_from: ontobricks_kg
+          - name: CLAIM_TABLE
+            value_from: claim_360
+          - name: PARTY_TABLE
+            value_from: party_360
+          - name: LOCATION_TABLE
+            value_from: location_360
+          - name: POLICY_TABLE
+            value_from: policy_360
+          - name: VECTOR_SEARCH_INDEX
+            value_from: vector-search-index
+          - name: VECTOR_SEARCH_COLUMNS
+            value: chunk_id,chunk_to_retrieve,source_path,document_type
+          - name: VECTOR_SEARCH_QUERY_COLUMNS
+            value: chunk_to_embed
+          - name: CLAIM_FRAUD_METRICS_TABLE
+            value_from: claim_fraud_metrics
       resources:
-        - name: supervisor-experiment
-          experiment:
-            experiment_id: ${var.mlflow_experiment_id}
-            permission: CAN_MANAGE
-        - name: supervisor-warehouse
+        - name: sql-warehouse
           sql_warehouse:
             id: ${var.warehouse_id}
             permission: CAN_USE
-        - name: supervisor-model
-          serving_endpoint:
-            name: ${var.model_endpoint}
-            permission: CAN_QUERY
-        - name: supervisor-mcp-app
+        - name: ontobricks_kg
           app:
-            name: mcp-insurance-fraud-poc
+            name: mcp-ontobricks-07x
             permission: CAN_USE
-        - name: claim-snapshot-function
+        - name: claim_360
           uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_claim_snapshot
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: claim-rules-function
+            securable_full_name: dmpipeline-dev.ri_gold.claim_360
+            securable_type: TABLE
+            permission: SELECT
+        - name: party_360
           uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.evaluate_claim_rules
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: claim-score-function
+            securable_full_name: dmpipeline-dev.ri_gold.party_360
+            securable_type: TABLE
+            permission: SELECT
+        - name: location_360
           uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.score_claim
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: claim-entities-function
+            securable_full_name: dmpipeline-dev.ri_gold.location_360
+            securable_type: TABLE
+            permission: SELECT
+        - name: policy_360
           uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_claim_entities
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: claim-network-function
+            securable_full_name: dmpipeline-dev.ri_gold.policy_360
+            securable_type: TABLE
+            permission: SELECT
+        - name: LLM
+          serving_endpoint:
+            name: databricks-claude-opus-5
+            permission: CAN_QUERY
+        - name: vector-search-index
           uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_claim_network
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: claim-documents-function
+            securable_full_name: dmpipeline-dev.plane4.chunks_demo_index
+            securable_type: TABLE
+            permission: SELECT
+        - name: claim_fraud_metrics
           uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.search_claim_documents
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: case-memory-function
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_case_memory
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: business-terms-function
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_business_terms
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: business-rules-function
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_business_rules
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: model-metadata-function
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_model_metadata
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: governance-function
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_governance_controls
-            securable_type: FUNCTION
-            permission: EXECUTE
-        - name: audit-events-function
-          uc_securable:
-            securable_full_name: ${var.catalog}.${var.schema}.get_audit_events
-            securable_type: FUNCTION
-            permission: EXECUTE
+            securable_full_name: dmpipeline-dev.ri_gold.claim_fraud_metrics
+            securable_type: TABLE
+            permission: SELECT

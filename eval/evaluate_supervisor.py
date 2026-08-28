@@ -12,12 +12,22 @@ from typing import Any
 
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--warehouse-id", required=True)
-    parser.add_argument("--catalog", required=True)
-    parser.add_argument("--schema", required=True)
+    parser.add_argument("--warehouse-id", default="")
     parser.add_argument("--model-endpoint", required=True)
     parser.add_argument("--mcp-app-name", required=True)
     parser.add_argument("--mlflow-experiment-id", required=True)
+    parser.add_argument("--claim-table", default="dmpipeline-dev.ri_gold.claim_360")
+    parser.add_argument("--party-table", default="dmpipeline-dev.ri_gold.party_360")
+    parser.add_argument("--location-table", default="dmpipeline-dev.ri_gold.location_360")
+    parser.add_argument("--policy-table", default="dmpipeline-dev.ri_gold.policy_360")
+    parser.add_argument(
+        "--fraud-metrics-table",
+        default="dmpipeline-dev.ri_gold.claim_fraud_metrics",
+    )
+    parser.add_argument(
+        "--vector-search-index",
+        default="dmpipeline-dev.plane4.chunks_demo_index",
+    )
     return parser.parse_args()
 
 
@@ -25,10 +35,14 @@ args = _arguments()
 os.environ.update(
     {
         "WAREHOUSE_ID": args.warehouse_id,
-        "FRAUD_CATALOG": args.catalog,
-        "FRAUD_SCHEMA": args.schema,
         "MODEL_ENDPOINT": args.model_endpoint,
         "MCP_APP_NAME": args.mcp_app_name,
+        "CLAIM_TABLE": args.claim_table,
+        "PARTY_TABLE": args.party_table,
+        "LOCATION_TABLE": args.location_table,
+        "POLICY_TABLE": args.policy_table,
+        "CLAIM_FRAUD_METRICS_TABLE": args.fraud_metrics_table,
+        "VECTOR_SEARCH_INDEX": args.vector_search_index,
         "MLFLOW_TRACKING_URI": "databricks",
         "MLFLOW_REGISTRY_URI": "databricks-uc",
         "MLFLOW_EXPERIMENT_ID": args.mlflow_experiment_id,
@@ -85,14 +99,12 @@ def predict(question: str) -> dict[str, Any]:
     }
 
 
-def _function_names(trace: dict[str, Any]) -> set[str]:
+def _operation_names(trace: dict[str, Any]) -> set[str]:
     names: set[str] = set()
-    for call in trace.get("function_calls", []):
-        functions = call.get("functions", []) if isinstance(call, dict) else []
-        if isinstance(functions, list):
-            names.update(str(name) for name in functions)
-        elif functions:
-            names.add(str(functions))
+    for call in trace.get("resource_operations", trace.get("function_calls", [])):
+        operation = call.get("operation") if isinstance(call, dict) else None
+        if operation:
+            names.add(str(operation))
     return names
 
 
@@ -113,16 +125,16 @@ def supervisor_contract(
         trace = {}
 
     queried_planes = set(trace.get("queried_planes", []))
-    function_names = _function_names(trace)
+    operation_names = _operation_names(trace)
     checks: dict[str, bool] = {
         "trace_present": trace.get("type") == "safe_orchestration_trace",
         "claim_id": not expected.get("claim_id") or trace.get("claim_id") == expected["claim_id"],
         "required_planes": set(expected.get("required_planes", [])).issubset(queried_planes),
-        "required_functions": set(expected.get("required_functions", [])).issubset(function_names),
+        "required_operations": set(expected.get("required_operations", [])).issubset(operation_names),
         "required_text": all(text.lower() in response.lower() for text in expected.get("required_text", [])),
         "stop_reason": not expected.get("expected_stop_reason")
         or trace.get("stop_reason") == expected["expected_stop_reason"],
-        "no_function_calls": not expected.get("no_function_calls") or not trace.get("function_calls"),
+        "no_operations": not expected.get("no_operations") or not trace.get("resource_operations"),
     }
     passed = all(checks.values())
     failed = [name for name, check in checks.items() if not check]

@@ -6,7 +6,9 @@ Supervisor and MCP App remain available; the custom App is the iteration path
 for a future application-owned frontend.
 
 For a from-zero, click-by-click recreation in a different workspace, start with
-[`reproduce.md`](./reproduce.md). This README is the shorter quick-start.
+[`reproduce.md`](./reproduce.md). It creates the custom Databricks App first,
+then links teammate-owned resources through the UI; no CLI or token is needed.
+This README is the shorter technical overview.
 
 ## What the custom supervisor does
 
@@ -40,103 +42,32 @@ conversation history and send it back with each `/responses` request.
 
 ## Recreate from a clean workspace
 
-Authentication is local-user OAuth through the `POC` Databricks CLI profile. Do
-not put a token or client secret in this repository.
+Use [`reproduce.md`](./reproduce.md) for the UI-only procedure. The repository
+also keeps `databricks.yml` and `resources/*.yml` as optional automation
+definitions for teammates who later want bundle-based deployment, but they are
+not required for the App UI workflow.
 
-```bash
-databricks auth login \
-  --host https://dbc-d0355882-ae53.cloud.databricks.com \
-  --profile POC
-
-databricks current-user me --profile POC
-databricks bundle validate --target dev --profile POC
-databricks bundle deploy --target dev --profile POC
-```
-
-The checked-in `mlflow_experiment_id` default is the experiment used by this
-workspace. In another workspace, create a user-owned experiment first and
-pass its returned ID to every bundle command:
-
-```bash
-databricks experiments create-experiment \
-  /Users/<your-user>/insurance-fraud-supervisor-poc \
-  --profile POC --output json
-
-databricks bundle validate --target dev --profile POC \
-  --var mlflow_experiment_id=<experiment-id>
-```
-
-Bootstrap the synthetic tables/functions, then start the Apps:
-
-```bash
-databricks bundle run bootstrap_fraud_memory --target dev --profile POC
-databricks bundle run fraud_mcp --target dev --profile POC
-databricks bundle run supervisor_agent --target dev --profile POC
-databricks bundle run supervisor_eval --target dev --profile POC
-```
-
-`bundle deploy` uploads/configures the App. `bundle run supervisor_agent` is
-the step that starts or restarts the custom App with the deployed code.
-`bundle run supervisor_eval` runs the synthetic contract against the same
-supervisor graph, records traces and scorer results in the MLflow experiment,
-and fails if a required plane, function, response phrase, or safety contract
-is missing.
-
-The custom App needs a serverless SQL warehouse, a queryable Databricks model
-serving endpoint, `EXECUTE` on the listed UC functions, and `CAN_USE` on
-`mcp-insurance-fraud-poc`. The bundle declares those resources; an account or
-workspace administrator may still need to approve the deployment.
+The custom App needs a serverless SQL warehouse, a queryable chat-capable model
+serving endpoint, an MLflow experiment, `Can execute` on the listed UC
+functions, and `Can use` on the MCP App. Add those dependencies under the App’s
+**App resources** section with the keys documented in `reproduce.md`.
 
 ## Query the custom App
 
-The App implements the MLflow Responses API. Use an OAuth token and the App's
-workspace URL:
+Open the App root in a logged-in browser to use the document-style memo UI. The
+UI submits `custom_inputs.debug_trace=true` and formats the returned safe
+orchestration trace below the memo, including a basic visual path from request
+through decisions and queries to synthesis. The App URL is generated for each
+workspace; open it from the App overview page rather than reusing another
+workspace’s URL.
 
-Opening the App root in a logged-in browser displays the document-style memo UI.
 The agent API is available at `/responses`, and `/health` is a lightweight
-health check. The UI submits `custom_inputs.debug_trace=true` and formats the
-returned safe orchestration trace below the memo, including a basic visual path
-from request through decisions and queries to synthesis.
+health check for a future frontend integration. The UI is the recommended POC
+test path and does not require you to create or paste an OAuth token.
 
-Current POC UI:
-
-`https://insurance-fraud-supervisor-poc-7474651884617029.aws.databricksapps.com`
-
-```bash
-databricks auth token --profile POC
-
-curl --request POST \
-  --url https://<custom-app-url>/responses \
-  --header "Authorization: Bearer <oauth-token>" \
-  --header "Content-Type: application/json" \
-  --data '{"input":[{"role":"user","content":"Investigate CLM-1001 and explain the strongest risk signals."}]}'
-```
-
-For development diagnostics, opt in to a safe orchestration trace. The
-response will include `custom_outputs.supervisor_trace` with loop decisions,
-selected planes, function/tool names, statuses, row counts, and stop reasons.
-It intentionally does not expose private model chain-of-thought or hidden
-prompts:
-
-```bash
-curl --request POST \
-  --url https://<custom-app-url>/responses \
-  --header "Authorization: Bearer <oauth-token>" \
-  --header "Content-Type: application/json" \
-  --data '{"input":[{"role":"user","content":"For CLM-1001, give me a concise triage summary."}],"custom_inputs":{"debug_trace":true}}'
-```
-
-For a local code check, install `uv`, authenticate the `POC` profile, and run:
-
-```bash
-cd custom_agent
-uv sync
-uv run start-server
-```
-
-The local server exposes the same Responses-compatible API on port 8000. Local
-execution uses the authenticated Databricks user; the deployed App uses its
-Databricks App service principal and the resource bindings above.
+The deployed App uses its Databricks App service principal and the resource
+bindings above. Local execution and direct API calls are optional developer
+workflows; the no-CLI recreation path is documented in `reproduce.md`.
 
 The App pins Python to the 3.12–3.13 range because one transitive dependency
 used by the Databricks agent runtime does not ship a Python 3.14 wheel in this

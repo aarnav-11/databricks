@@ -1,5 +1,10 @@
 # Databricks POC authentication
 
+> **Optional developer workflow.** The current custom-supervisor recreation is
+> UI-first and does not require the Databricks CLI or a copied OAuth token. Use
+> `reproduce.md` for the current procedure. This file is retained for developers
+> who intentionally use the bundle/CLI workflow.
+
 This project uses the modern Databricks CLI and Declarative Automation Bundles.
 The profile name expected by `databricks.yml` is `POC`.
 

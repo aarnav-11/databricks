@@ -157,7 +157,15 @@ def render_ui() -> str:
     function renderQueryResults(results) {
       return (results || []).map(item => {
         const calls = (item.calls || []).map(call => `<div class="call"><strong>${escapeHtml(call.function || item.tool || "tool")}</strong> · ${escapeHtml(call.status || "unknown")} · ${escapeHtml(call.row_count ?? "n/a")} rows</div>`).join("");
-        return `<div class="call"><strong>${escapeHtml(item.plane || "plane")}</strong> · ${escapeHtml(item.status || "unknown")}${calls}</div>`;
+        const domains = Array.isArray(item.available_domains) && item.available_domains.length
+          ? `<div class="call"><strong>Available Ontobricks domains:</strong> ${escapeHtml(item.available_domains.join(", "))}</div>`
+          : "";
+        const discovery = item.domain_discovery_result != null
+          ? `<div class="call"><strong>Raw list_domains result:</strong><pre>${escapeHtml(JSON.stringify(item.domain_discovery_result, null, 2))}</pre></div>`
+          : "";
+        const message = item.message ? `<div class="call">${escapeHtml(item.message)}</div>` : "";
+        const nextStep = item.next_step ? `<div class="call"><strong>Next step:</strong> ${escapeHtml(item.next_step)}</div>` : "";
+        return `<div class="call"><strong>${escapeHtml(item.plane || "plane")}</strong> · ${escapeHtml(item.status || "unknown")}${calls}${message}${domains}${discovery}${nextStep}</div>`;
       }).join("");
     }
     function renderDiagram(trace) {

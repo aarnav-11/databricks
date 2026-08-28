@@ -193,22 +193,56 @@ class MCPClientAdapter:
                 else:
                     records.extend(MCPClientAdapter._domain_records(item))
             return records
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return []
+            try:
+                parsed = json.loads(stripped)
+            except json.JSONDecodeError:
+                return []
+            return MCPClientAdapter._domain_records(parsed)
         if not isinstance(value, dict):
             return []
-        for key in ("domains", "items", "results", "data"):
+        for key in (
+            "domains",
+            "available_domains",
+            "domain_list",
+            "items",
+            "results",
+            "result",
+            "data",
+        ):
             nested = value.get(key)
-            if isinstance(nested, list):
-                return MCPClientAdapter._domain_records(nested)
+            if nested is not None:
+                records = MCPClientAdapter._domain_records(nested)
+                if records:
+                    return records
         if any(key in value for key in ("domain_id", "domainId", "id", "name", "domain_name")):
             return [value]
+        for key, nested in value.items():
+            if "domain" in str(key).casefold():
+                records = MCPClientAdapter._domain_records(nested)
+                if records:
+                    return records
         return []
 
     @staticmethod
     def _domain_text(record: dict[str, Any]) -> str:
-        return " ".join(
-            str(record.get(key, ""))
-            for key in ("name", "domain_name", "display_name", "title", "description", "id", "domain_id")
-        ).strip()
+        value = _first_value(
+            record,
+            "name",
+            "domain_name",
+            "display_name",
+            "title",
+            "id",
+            "domain_id",
+        )
+        return str(value or "").strip()
+
+    @staticmethod
+    def _domain_search_text(record: dict[str, Any]) -> str:
+        return " ".join(str(value) for value in record.values() if value is not None)
 
     def _choose_domain(self, records: list[dict[str, Any]]) -> dict[str, Any] | None:
         if self.domain_name:
@@ -223,7 +257,10 @@ class MCPClientAdapter:
         claim_matches = [
             record
             for record in records
-            if any(word in self._domain_text(record).casefold() for word in ("claim", "insurance", "fraud"))
+            if any(
+                word in self._domain_search_text(record).casefold()
+                for word in ("claim", "insurance", "fraud")
+            )
         ]
         return claim_matches[0] if len(claim_matches) == 1 else None
 
@@ -259,11 +296,17 @@ class MCPClientAdapter:
         records = self._domain_records(listed.get("result"))
         domain = self._choose_domain(records)
         if domain is None:
+            message = (
+                "Ontobricks returned domains but no unique claims domain could be selected."
+                if records
+                else "Ontobricks list_domains responded, but its domain records could not be parsed."
+            )
             return {
                 "status": "missing_configuration",
                 "operation": "mcp_select_domain",
-                "message": "Ontobricks returned multiple domains and no unique claims domain could be selected.",
+                "message": message,
                 "available_domains": [self._domain_text(record) for record in records],
+                "domain_discovery_result": listed.get("result"),
                 "next_step": "Set MCP_DOMAIN_NAME to the exact claims-domain name from available_domains.",
             }
 

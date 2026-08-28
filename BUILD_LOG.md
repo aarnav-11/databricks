@@ -1,5 +1,9 @@
 # Insurance Fraud Memory Layer POC — broad build log
 
+> **Historical build log.** This records the earlier synthetic memory-layer and
+> native Supervisor POC. For the current custom Databricks App and its
+> recreation steps, use `README.md` and `reproduce.md`.
+
 This is the short walkthrough for the POC. It is intentionally broad enough to
 read in about 15 minutes. Exact commands and lower-level details live in the
 bundle, SQL, app, and supervisor files beside it.

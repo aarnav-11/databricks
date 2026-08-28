@@ -77,6 +77,7 @@ class MCPDomainInitializationTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "missing_configuration")
         self.assertEqual(result["operation"], "mcp_select_domain")
+        self.assertEqual(result["available_domains"], ["Property", "Automotive"])
         self.assertEqual(adapter.calls, [("list_domains", {})])
 
     def test_configured_domain_selects_one_of_multiple_domains(self):
@@ -89,6 +90,13 @@ class MCPDomainInitializationTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(adapter.calls[1], ("select_domain", {"domain_name": "Automotive"}))
+
+    def test_parses_available_domains_wrapper(self):
+        records = MCPClientAdapter._domain_records(
+            {"result": {"available_domains": ["Property", "Automotive"]}}
+        )
+
+        self.assertEqual(records, [{"name": "Property"}, {"name": "Automotive"}])
 
     def test_mcp_error_result_is_not_reported_as_success(self):
         class ErrorClient:

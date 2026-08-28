@@ -1,5 +1,10 @@
 # Insurance fraud MCP app
 
+> **Earlier standalone App.** This folder contains the original VIN/memory MCP
+> POC. It is separate from the company-provided `mcp-ontobricks-07x` knowledge
+> graph used by `custom_agent`. Do not upload this folder as the current
+> supervisor App source.
+
 This Databricks App exposes three MCP tools at `/mcp`:
 
 - `health`: confirms the service is running.

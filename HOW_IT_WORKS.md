@@ -1,5 +1,11 @@
 # Insurance Fraud Memory Layer POC — How Everything Works
 
+> **Earlier architecture reference.** This document describes the original
+> synthetic memory-layer and native Supervisor POC. It does not describe the
+> current `custom_agent` App, linked `ri_gold` resources, Ontobricks domain
+> handshake, or metric-view adapter. Use `README.md` and `reproduce.md` for the
+> current implementation.
+
 This document explains the complete development-only POC: the nine memory and
 knowledge planes, the Delta tables, the Unity Catalog functions, the native
 Supervisor Agent, the custom MCP App, authentication, deployment, testing, and

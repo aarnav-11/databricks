@@ -318,6 +318,15 @@ claims-domain name shown in the trace:
 Redeploy the App after saving the file. Domain selection is session-scoped, so
 the adapter repeats the handshake whenever it performs an Ontobricks lookup.
 
+If the trace shows `available_domains: []` while its message says that domains
+were returned, upload the current `mcp_tools.py`, `agent.py`, and `ui.py`, then
+redeploy. Run the request again and inspect **Raw list_domains result** or search
+the raw trace JSON for `domain_discovery_result`. The adapter recognizes common
+`domains`, `available_domains`, `domain_list`, `result`, `results`, `items`, and
+`data` wrappers. If the server uses another response shape, use the displayed
+debug value to update `_domain_records`; do not guess a domain or select the
+first item automatically.
+
 The supervisor can automatically call a query tool only when the tool looks
 read-only and all required inputs map to the claim ID or user question.
 
@@ -397,6 +406,7 @@ design should be completed before external users are connected.
 | Fraud metrics reports `METRIC_VIEW_MISSING_MEASURE_FUNCTION` | Upload the current `plane_registry.py`, `uc_tools.py`, and `agent.py`; the metric plane must use `query_metric_view`, not `SELECT *` |
 | MCP returns HTTP 503 | Open `mcp-ontobricks-07x`, confirm it is Running, then inspect its logs and downstream dependencies |
 | MCP says `No domain selected` | Upload the current `mcp_tools.py`; if the trace lists multiple domains, set `MCP_DOMAIN_NAME` as described in Step 9 |
+| MCP shows `available_domains: []` after reporting multiple domains | Upload current `mcp_tools.py`, `agent.py`, and `ui.py`; inspect **Raw list_domains result** / `domain_discovery_result`, then adapt `_domain_records` to that exact wrapper |
 | MCP lists tools but does not call one | Follow Step 9 and pin the confirmed read-only tool |
 | Model query fails | Confirm `databricks-claude-opus-5` is READY and the App has **Can query** |
 | App asks for a claim ID you supplied | Adjust `CLAIM_ID_REGEX` to the actual identifier format |

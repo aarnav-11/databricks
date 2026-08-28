@@ -8,6 +8,18 @@ resources listed below and exposes both a browser UI and a Responses-compatible
 For a click-by-click build in a different Azure Databricks workspace, use
 [`reproduce.md`](./reproduce.md).
 
+## Documentation map
+
+| File | Status and purpose |
+|---|---|
+| `README.md` | Current custom-supervisor architecture, resources, and behavior |
+| `reproduce.md` | Current UI-first recreation and troubleshooting procedure |
+| `AUTH_SETUP.md` | Optional CLI authentication reference; not required by the UI-first path |
+| `HOW_IT_WORKS.md` | Earlier synthetic memory-layer/native Supervisor architecture |
+| `BUILD_LOG.md` | Historical build log for that earlier POC |
+| `app/README.md` | Earlier standalone VIN/memory MCP App, not Ontobricks |
+| `supervisor/instructions.md` | Prompt retained for the earlier native Supervisor comparison |
+
 ## Current App resources
 
 These keys are case-sensitive and must match `custom_agent/app.yaml`.
@@ -87,7 +99,11 @@ The MCP adapter calls `list_tools()` at runtime. When Ontobricks exposes
 lookup. It automatically selects a single available domain or one uniquely
 identified by `claim`, `insurance`, or `fraud`. If more than one domain remains
 ambiguous, set `MCP_DOMAIN_NAME` to the exact name returned in
-`available_domains`.
+`available_domains`. If `available_domains` is empty even though Ontobricks
+reports multiple domains, the adapter exposes `domain_discovery_result` in the
+debug trace and the UI labels it **Raw list_domains result**. That output is for
+adapting the POC parser to the MCP server's response shape; do not copy secrets
+or unrelated metadata into configuration.
 
 If `MCP_TOOL_NAME` is set, the adapter uses that exact query tool. Otherwise it
 considers only tools whose MCP annotations or names indicate a read operation,

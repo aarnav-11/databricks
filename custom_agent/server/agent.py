@@ -441,6 +441,10 @@ Rules:
                         }
                     ],
                     "missing": result.get("missing") or result.get("missing_resource"),
+                    "message": result.get("message"),
+                    "available_domains": result.get("available_domains"),
+                    "domain_discovery_result": result.get("domain_discovery_result"),
+                    "next_step": result.get("next_step"),
                 }
             )
 

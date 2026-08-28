@@ -8,7 +8,9 @@ from mlflow.genai.agent_server import AgentServer
 
 from server.ui import render_ui
 
-load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env", override=True)
+# Local .env values are fallbacks only. Databricks App resource bindings,
+# including WAREHOUSE_ID, must never be overwritten at startup.
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env", override=False)
 
 # Importing the module registers the @invoke and @stream handlers.
 import server.agent  # noqa: E402,F401

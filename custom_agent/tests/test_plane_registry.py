@@ -8,6 +8,14 @@ from server.plane_registry import extract_claim_id, load_plane_specs, validate_p
 
 
 class PlaneRegistryTests(unittest.TestCase):
+    def test_local_dotenv_cannot_override_app_resource_bindings(self):
+        start_server = (
+            Path(__file__).parents[1] / "server" / "start_server.py"
+        ).read_text()
+
+        self.assertIn("override=False", start_server)
+        self.assertNotIn("override=True", start_server)
+
     def test_app_yaml_binds_every_current_resource_key(self):
         app_yaml = (Path(__file__).parents[1] / "app.yaml").read_text()
 

@@ -2,7 +2,7 @@ resources:
   jobs:
     supervisor_eval:
       name: insurance-fraud-supervisor-evaluation
-      description: Runs the synthetic supervisor contract and records MLflow evaluation traces.
+      description: Runs the resource-backed supervisor contract and records MLflow evaluation traces.
       tasks:
         - task_key: evaluate_supervisor
           spark_python_task:
@@ -10,14 +10,10 @@ resources:
             parameters:
               - --warehouse-id
               - ${var.warehouse_id}
-              - --catalog
-              - ${var.catalog}
-              - --schema
-              - ${var.schema}
               - --model-endpoint
-              - ${var.model_endpoint}
+              - databricks-claude-opus-5
               - --mcp-app-name
-              - mcp-insurance-fraud-poc
+              - mcp-ontobricks-07x
               - --mlflow-experiment-id
               - ${var.mlflow_experiment_id}
           environment_key: default

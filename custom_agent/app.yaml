@@ -1,19 +1,23 @@
 command: ["uv", "run", "start-server"]
 
 env:
-  - name: WAREHOUSE_ID
-    valueFrom: supervisor-warehouse
   - name: MLFLOW_TRACKING_URI
     value: databricks
   - name: MLFLOW_REGISTRY_URI
     value: databricks-uc
-  - name: MLFLOW_EXPERIMENT_ID
-    valueFrom: supervisor-experiment
-  - name: FRAUD_CATALOG
-    value: workspace
-  - name: FRAUD_SCHEMA
-    value: insurance_fraud_poc
   - name: MODEL_ENDPOINT
-    valueFrom: supervisor-model
+    valueFrom: LLM
   - name: MCP_APP_NAME
-    valueFrom: supervisor-mcp-app
+    valueFrom: ontobricks_kg
+  - name: CLAIM_TABLE
+    valueFrom: claim_360
+  - name: PARTY_TABLE
+    valueFrom: party_360
+  - name: LOCATION_TABLE
+    valueFrom: location_360
+  - name: POLICY_TABLE
+    valueFrom: policy_360
+  - name: VECTOR_SEARCH_INDEX
+    valueFrom: vector-search-index
+  - name: CLAIM_FRAUD_METRICS_TABLE
+    valueFrom: claim_fraud_metrics

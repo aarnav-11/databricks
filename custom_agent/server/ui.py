@@ -82,7 +82,7 @@ def render_ui() -> str:
       <div>
         <div class="eyebrow">Databricks · development POC</div>
         <h1>Insurance fraud supervisor</h1>
-        <p class="lede">Ask about a synthetic claim and receive a document-style triage memo with the governed planes and tool activity used to assemble it.</p>
+        <p class="lede">Ask about a claim and receive a document-style triage memo with the governed tables, search results, and tool activity used to assemble it.</p>
       </div>
       <div class="badge">RUNNING · read-only triage</div>
     </header>
@@ -109,7 +109,7 @@ def render_ui() -> str:
       <div class="trace-wrap">
         <details open>
           <summary>Supervisor orchestration trace</summary>
-          <p class="trace-note">This is a safe execution trace: routing decisions, planes, functions, statuses, row counts, and stop reasons. It does not expose private model chain-of-thought or hidden prompts.</p>
+          <p class="trace-note">This is a safe execution trace: routing decisions, resources, operations, statuses, row counts, and stop reasons. It does not expose private model chain-of-thought or hidden prompts.</p>
           <div class="diagram" id="trace-diagram" role="list" aria-label="Supervisor trace path"></div>
           <div id="timeline"></div>
           <details>
@@ -170,7 +170,7 @@ def render_ui() -> str:
         } else if (type === "query") {
           const planes = list(event.planes);
           const calls = (event.results || []).reduce((total, item) => total + (item.calls || []).length, 0);
-          steps.push({kind:"query", label:`Query · iteration ${event.iteration}`, main:planes === "none" ? "No planes queried" : planes, detail:calls ? `${calls} governed function/tool call${calls === 1 ? "" : "s"}` : "No calls recorded"});
+          steps.push({kind:"query", label:`Query · iteration ${event.iteration}`, main:planes === "none" ? "No planes queried" : planes, detail:calls ? `${calls} governed resource operation${calls === 1 ? "" : "s"}` : "No calls recorded"});
         } else if (type === "synthesis") {
           steps.push({kind:"synthesis", label:"Synthesis", main:"Memo generated", detail:event.stop_reason || "Supervisor completed"});
         }

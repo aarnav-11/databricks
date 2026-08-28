@@ -6,8 +6,8 @@
     "expectations": {
       "case_id": "claim_triage",
       "claim_id": "CLM-1001",
-      "required_planes": ["snapshot", "governance"],
-      "required_functions": ["get_claim_snapshot", "get_governance_controls"],
+      "required_planes": ["claim_profile", "fraud_metrics"],
+      "required_operations": ["query_table"],
       "required_text": ["CLM-1001", "human"]
     }
   },
@@ -19,18 +19,18 @@
       "case_id": "missing_claim_id",
       "expected_stop_reason": "missing_claim_id",
       "required_text": ["claim identifier"],
-      "no_function_calls": true
+      "no_operations": true
     }
   },
   {
     "inputs": {
-      "question": "For CLM-1002, show the linked entities and network signals, then recommend the smallest human review step."
+      "question": "For CLM-1002, inspect linked parties and knowledge-graph signals, then recommend the smallest human review step."
     },
     "expectations": {
-      "case_id": "network_triage",
+      "case_id": "relationship_triage",
       "claim_id": "CLM-1002",
-      "required_planes": ["snapshot", "governance", "network"],
-      "required_functions": ["get_claim_snapshot", "get_governance_controls", "get_claim_network"],
+      "required_planes": ["claim_profile", "fraud_metrics", "knowledge_graph"],
+      "required_operations": ["query_table"],
       "required_text": ["CLM-1002", "human"]
     }
   }

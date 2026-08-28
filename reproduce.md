@@ -1,190 +1,69 @@
-# Reproduce the insurance-fraud custom supervisor POC in the Databricks UI
+# Reproduce the custom supervisor in the Azure Databricks UI
 
-Last reviewed: 2026-08-27
+Last reviewed: 2026-08-28
 
-This is the UI-only, beginner-friendly build order for recreating the POC in a
-different Azure Databricks workspace. It starts by creating the custom
-Databricks App so the app identity exists first. You then manually upload the
-App code to a workspace folder and link the SQL warehouse, MLflow experiment,
-model endpoint, MCP App, and Unity Catalog functions as your teammates make
-them available.
+This guide assumes you are starting in another Azure Databricks workspace, do
+not have the Databricks CLI, and will manually upload the agent code. It creates
+the supervisor App first and links teammate-owned resources afterward.
 
-You do not need the Databricks CLI, a local terminal, an access token, or a
-`databricks.yml` deployment to follow this guide. Browser sign-in supplies your
-user authentication. The deployed App uses its own Databricks service
-principal and the resource permissions you add in the App UI.
+Do not paste access tokens into the code or App settings. Your browser login is
+used while you configure the App. At runtime, the App uses its own Databricks
+service principal and only the resources linked on its **App resources** page.
 
-## What you will build
+## Before you start
 
-```text
-Browser
-   |
-   v
-Custom Databricks App: insurance-fraud-supervisor-poc
-   |
-   v
-Bounded LangGraph supervisor loop
-   |                         |
-   v                         v
-UC function resources       MCP App resource
-   |                         |
-   v                         v
-Synthetic Delta planes      VIN corroboration / controlled memory service
+You need:
 
-MLflow experiment records traces and evaluation results.
-```
+1. The `custom_agent` folder from this repository on your computer.
+2. Access to the target Azure Databricks workspace in a browser.
+3. Permission to create a Databricks App and upload files to a workspace
+   folder.
+4. Permission to link, or help from owners who can link, the resources listed
+   in Step 4.
 
-The custom supervisor is the code in `custom_agent/`. The `app/` directory is
-the separate MCP App. Do not paste the Python supervisor into an Agent Bricks
-chat box. Deploy `custom_agent/` as a custom Databricks App.
+You do not need GitHub. Azure hosting does not prevent manual workspace-folder
+deployment.
 
-The main demo includes:
+## Step 1 — Create the custom App shell
 
-- a model-routed, bounded loop that decides whether it needs more evidence;
-- allowlisted data planes backed by governed Unity Catalog functions;
-- an existing MCP App for read-only VIN corroboration;
-- a document-style browser memo with a safe orchestration trace diagram; and
-- an optional MLflow evaluation harness.
-
-This is synthetic development data. It is not a production fraud decisioning
-system and does not deny, pay, or otherwise adjudicate a claim.
-
-## The three things people may call an “agent”
-
-Keep these separate while following the steps:
-
-| Name | What it is | Use in this guide |
-|---|---|---|
-| Custom supervisor App | Python/LangGraph code in `custom_agent/` hosted by Databricks Apps | **Yes — this is the primary build** |
-| MCP App | A separate Databricks App exposing MCP tools from `app/` | Link it as a dependency when it exists |
-| Native Agent Bricks Supervisor | A point-and-click supervisor created under the Agents area | Optional comparison only; not required |
-
-If you want the code, loop, trace, and future-frontend API from this repository,
-choose **Databricks Apps → Create a custom app**. Do not choose the native
-Agent Bricks Supervisor wizard for the primary path.
-
-## Build order at a glance
-
-1. Create the custom App shell.
-2. Upload the `custom_agent/` folder to a workspace folder.
-3. Collect teammate resource names and IDs in the handoff table.
-4. Create or verify the catalog, schema, tables, and UC functions.
-5. Add each available dependency under the App’s **App resources** section.
-6. Confirm the App’s `app.yaml` resource keys match the linked resources.
-7. Deploy from the workspace folder in the Databricks UI.
-8. Open the generated App URL and run the browser demo.
-9. Optionally create the evaluation job through the Jobs UI.
-
-You can complete steps 1–2 now even if the other team members are still
-building their resources. Save the App without deploying it, then return to
-step 5 whenever a dependency becomes available.
-
-## Step 0 — Write down the values you will use
-
-Open the repository in a browser or editor and keep this table beside the
-Databricks tab. Replace a default only when your team has chosen a different
-resource.
-
-| Setting | Default for this POC | Where it is used |
-|---|---|---|
-| Custom App name | `insurance-fraud-supervisor-poc` | Databricks Apps; permanent name |
-| Deployment source | Workspace folder uploaded through the UI | App source |
-| App source folder | A workspace folder containing `app.yaml` | The folder treated as the App root |
-| Optional source repo | `https://github.com/aarnav-11/databricks` | Only if Git is available |
-| Unity Catalog catalog | `workspace` | `FRAUD_CATALOG` |
-| Unity Catalog schema | `insurance_fraud_poc` | `FRAUD_SCHEMA` |
-| SQL warehouse | teammate-provided | `supervisor-warehouse` resource |
-| MLflow experiment | teammate-provided or one you create | `supervisor-experiment` resource |
-| Model serving endpoint | teammate-provided chat-capable endpoint | `supervisor-model` resource |
-| MCP App | teammate-provided running App name | `supervisor-mcp-app` resource |
-
-The App name can contain only lowercase letters, numbers, and hyphens. It must
-be unique in the workspace and cannot be renamed later. Do not put a token,
-password, or other secret in this table or in the repository.
-
-## Step 1 — Create the custom Databricks App first
-
-This creates the App identity and service principal before you link any
-resources. Creating it does not deploy the code automatically.
-
-### 1.1 Open Databricks Apps
-
-1. Open the URL of the Databricks **workspace** where you want the POC.
-2. Sign in with your normal browser login.
-3. Look at the left sidebar.
-4. If the sidebar is collapsed, click the **app switcher** in the upper-left.
-5. Select **Databricks Apps**.
-
-If **Databricks Apps** is not present, stop here and ask a workspace
-administrator to enable Databricks Apps and serverless App compute. You cannot
-fix a disabled workspace feature from the repository.
-
-### 1.2 Create the App shell
-
-1. On the Databricks Apps page, click **+ Create app**.
-2. Select **Create a custom app**.
-3. In **Name**, enter:
+1. Open your Azure Databricks workspace URL.
+2. Sign in normally.
+3. In the left sidebar, click **Databricks Apps**. If the sidebar is collapsed,
+   first open the app switcher in the upper-left.
+4. Click **Create app**.
+5. Select **Create a custom app**. Do not select an Agent Bricks chatbot or
+   supervisor template; this repository supplies its own Python supervisor.
+6. Enter an App name, for example:
 
    ```text
    insurance-fraud-supervisor-poc
    ```
 
-4. In **Description**, enter something like:
+7. Enter a description such as:
 
    ```text
-   Development-only bounded supervisor for synthetic insurance-fraud triage.
+   Development-only bounded supervisor for insurance-fraud triage.
    ```
 
-5. Click **Next: Configure Git**.
+8. Continue to the source or Git configuration screen.
+9. Choose **Skip**, **Configure later**, or the equivalent option that creates
+   the App without a Git provider.
+10. Leave automatic deployment off.
+11. Click **Create app**.
+12. Wait until the App overview page appears.
 
-The screen is part of the custom-App wizard; you do not have to choose a Git
-provider on it. Continue to Step 1.3 and leave the provider unconfigured.
+If there is no way to skip Git, ask a workspace administrator whether the Apps
+setting **Only allow app deployments from Git** is enabled. That policy must be
+changed, or an approved Azure DevOps repository must be supplied, before you
+can use manual upload. This is a workspace policy, not a limitation of Azure.
 
-### 1.3 Skip Git when the provider is unavailable
+The App does not need to be running yet. Creating it now gives you the App
+identity that will receive resource permissions.
 
-You do not need GitHub, Azure DevOps, or any other Git provider for this
-workflow. The source will be uploaded into a Databricks workspace folder in
-Step 2.
+## Step 2 — Prepare the code folder
 
-1. On the Git configuration screen, look for **Skip**, **Next: Configure**, or
-   **Create app** without selecting a provider. The exact button depends on the
-   workspace UI version.
-2. Leave Git unconfigured.
-3. Continue to the configuration screen, if one is shown.
-
-If your workspace does not offer a skip option, ask a workspace administrator
-whether **Only allow app deployments from Git** is enabled under the Apps
-development settings. That workspace policy must be relaxed for this manual
-workspace-folder deployment, or an administrator must provide an approved Git
-provider/repository. Azure Databricks supports workspace-folder deployments;
-being on Azure does not by itself require GitHub.
-
-Do not enable automatic deployment. The manual upload path is easier while
-teammates are still changing linked resources.
-
-### 1.4 Save without deploying
-
-1. Leave advanced settings at their defaults for now.
-2. Do not try to add resources that do not exist yet.
-3. Click **Create app**.
-4. Wait for the App overview page to appear.
-5. Confirm that the App exists and that you can see its overview, settings,
-   resources, and deployment controls.
-
-At this point the App shell is complete. It is normal for it not to be
-`RUNNING` yet. Do not delete and recreate it when a teammate gives you a new
-warehouse, model endpoint, or MCP App; add the new resource to this same App.
-
-## Step 2 — Upload the supervisor code manually
-
-The repository has more than one deployable component. Upload only the
-`custom_agent` directory for this App. The `app/` directory is the separate MCP
-App and is not part of the supervisor upload.
-
-### 2.1 Confirm the required files
-
-The workspace folder selected as the App source must contain these files at its
-top level:
+The folder you deploy must have `app.yaml` at its top level. Confirm this shape
+on your computer:
 
 ```text
 custom_agent/
@@ -192,794 +71,322 @@ custom_agent/
 ├── pyproject.toml
 ├── requirements.txt
 └── server/
+    ├── __init__.py
     ├── agent.py
     ├── mcp_tools.py
     ├── plane_registry.py
     ├── start_server.py
     ├── uc_tools.py
+    ├── vector_tools.py
     └── ui.py
 ```
 
-`app.yaml` starts the server with `uv run start-server`. Databricks reads it
-from the root of the selected App source folder.
+Do not upload the repository root as this App’s source. The `app/` directory is
+a separate MCP server, and the older `sql/` and bundle files are not required
+for this deployment.
 
-### 2.2 Create a workspace folder
+If your workspace import screen accepts a ZIP, compress the contents of
+`custom_agent` so that opening the ZIP immediately shows `app.yaml`. Avoid an
+extra nested `custom_agent/custom_agent` directory.
 
-1. Open **Workspace** from the left sidebar.
-2. Open your user folder, or another folder where you have permission to add
-   files.
+## Step 3 — Upload the code without a Git provider
+
+1. In Azure Databricks, click **Workspace** in the left sidebar.
+2. Open your user folder under **Users**.
 3. Click **Create → Folder**.
-4. Name the folder:
+4. Name it:
 
    ```text
    insurance-fraud-supervisor-poc
    ```
 
-5. Open the new folder.
-
-### 2.3 Make a ZIP of `custom_agent` on your computer
-
-This is the simplest way to upload the nested `server/` folder without using
-the CLI.
-
-1. On your computer, open the repository folder.
-2. Right-click the `custom_agent` folder.
-3. On macOS, choose **Compress “custom_agent”**. On Windows, choose **Send to
-   → Compressed (zipped) folder**.
-4. Keep the resulting `custom_agent.zip` somewhere easy to find.
-
-The ZIP should contain the `custom_agent` folder, with `app.yaml` directly
-inside it and `server/` underneath it. Do not ZIP the entire repository for
-this App.
-
-### 2.4 Import the ZIP into the workspace
-
-1. In the open Databricks folder from step 2.2, click the folder’s **kebab menu
-   (⋮)**.
-2. Choose **Import**.
-3. Drag `custom_agent.zip` into the import dialog, or click **Browse** and
-   select it.
-4. Confirm the import.
-5. Wait for the upload and automatic ZIP extraction to finish.
-
-Azure Databricks extracts an imported ZIP. The expected final path is similar
-to:
-
-```text
-/Workspace/Users/<your-user>/insurance-fraud-supervisor-poc/custom_agent/app.yaml
-```
-
-If the extracted folder has a different parent name, that is fine. The folder
-you select during deployment must be the folder where `app.yaml` is located
-directly at the top level.
-
-### 2.5 Verify the uploaded files in the browser
-
-1. Open the extracted `custom_agent` folder.
-2. Confirm that `app.yaml`, `pyproject.toml`, and `requirements.txt` are
-   visible.
-3. Open the `server` folder.
-4. Confirm that `agent.py`, `mcp_tools.py`, `plane_registry.py`,
-   `start_server.py`, `uc_tools.py`, and `ui.py` are visible.
-5. Open `app.yaml` and confirm that it contains the resource keys
-   `supervisor-warehouse`, `supervisor-experiment`, `supervisor-model`, and
-   `supervisor-mcp-app`.
-
-If you use a catalog or schema other than `workspace.insurance_fraud_poc`, edit
-the two static values in this workspace copy of `app.yaml`. Workspace file
-edits are saved automatically. The resource-linked values must remain
-`valueFrom` references.
-
-### 2.6 Manual upload fallback if ZIP import is disabled
-
-If your workspace blocks ZIP import, create the `custom_agent` folder and its
-`server` subfolder manually, then use **Import** to upload each file into the
-matching folder. You need the same files listed in step 2.1. This is slower but
-still does not require Git or the CLI.
-
-### 2.7 Optional Git path
-
-If your team later makes an Azure DevOps repository available, you can switch
-to a Git deployment. Select **Azure DevOps** only when the code is actually in
-that repository. GitHub is not required, and the workspace-folder path above
-is the recommended path for your current setup.
-
-## Step 3 — Collect the teammate handoff information
-
-A resource must already exist before it can be added to an App. The user
-adding it also needs **Can manage** permission on both the resource and the
-App. Ask each teammate for the exact name or ID, not a screenshot or a
-nickname.
-
-Fill this table as the resources are created.
-
-| Status | Teammate must provide | Databricks App resource type | Resource key to use | App permission |
-|---|---|---|---|---|
-| WAITING / READY | SQL warehouse ID or exact name | SQL warehouse | `supervisor-warehouse` | **Can use** |
-| WAITING / READY | MLflow experiment ID or exact path | MLflow experiment | `supervisor-experiment` | **Can manage** |
-| WAITING / READY | Serving endpoint name | Serving endpoint | `supervisor-model` | **Can query** |
-| WAITING / READY | MCP App name | Databricks app | `supervisor-mcp-app` | **Can use** |
-| WAITING / READY | UC functions listed in Step 5 | UC function | function-specific keys | **Can execute** |
-
-Send teammates this minimum request:
-
-> Please send the exact Databricks resource name/ID, confirm it is ready, and
-> grant me enough permission to add it to the App. I need a SQL warehouse, an
-> MLflow experiment, a chat-capable serving endpoint, the MCP App name, and the
-> full three-level names of the UC functions.
-
-### What “linking” means
-
-The App has its own service principal. Adding a resource does two things:
-
-1. it grants that service principal the selected permission on the existing
-   resource; and
-2. it exposes a stable environment value to the App using the resource key.
-
-The resource is not copied, moved, or recreated. A teammate can continue to
-own and update the resource after you link it.
-
-### If a teammate is not finished
-
-Leave that row as `WAITING`. Do not create a fake resource with a guessed name.
-You can return to the same App later:
-
-1. Open **Databricks Apps**.
-2. Click `insurance-fraud-supervisor-poc`.
-3. Open the App edit/configuration view.
-4. Add the newly available resource under **App resources**.
-5. Save and redeploy when the full required set is linked.
-
-## Step 4 — Create or verify the Unity Catalog data plane
-
-The App does not create its own tables or functions at runtime. The catalog,
-schema, tables, and functions must exist first.
-
-There are two valid paths. Use only one.
-
-### Path A — Your teammates already own the data plane
-
-Ask them for:
-
-- catalog name;
-- schema name;
-- confirmation that the 11 POC tables exist; and
-- the full three-level names of the 12 functions.
-
-Use their catalog and schema in the handoff table. Skip the bootstrap script if
-their data is the authoritative shared POC data.
-
-### Path B — Bootstrap the synthetic POC data yourself in the UI
-
-Use this path only if the team has not created the shared data plane.
-
-#### 4.1 Choose or create a SQL warehouse
-
-If a teammate already supplied a warehouse, use that one. Otherwise:
-
-1. In the left sidebar, open **SQL** or **SQL Warehouses**.
-2. Click **Create SQL warehouse**.
-3. Give it a name such as `insurance-fraud-supervisor-poc`.
-4. Choose **Serverless** if your workspace offers it.
-5. Keep the smallest reasonable development size.
-6. Click **Create**.
-7. Record the warehouse ID from the warehouse details page.
-
-This warehouse will be used both to run the bootstrap SQL and by the deployed
-App. The App needs only **Can use** on it.
-
-#### 4.2 Choose the catalog and schema
-
-The checked-in synthetic SQL uses:
-
-```text
-catalog: workspace
-schema: insurance_fraud_poc
-```
-
-If you use those exact names, no namespace edit is needed. If you choose a
-different catalog or schema:
-
-1. Make a copy of `sql/bootstrap.sql` in your editor.
-2. Replace every occurrence of `workspace.insurance_fraud_poc` with
-   `<your-catalog>.<your-schema>`.
-3. Keep the periods between catalog, schema, and object names.
-4. Later, update the `FRAUD_CATALOG` and `FRAUD_SCHEMA` values in
-   `custom_agent/app.yaml` to the same names.
-
-Do not replace only the first occurrence; the functions reference the tables
-using fully qualified names throughout the file.
-
-#### 4.3 Run the bootstrap SQL in SQL Editor
-
-1. Open **SQL Editor** from the left sidebar.
-2. Click **New query**.
-3. At the top of the editor, select the warehouse from step 4.1.
-4. Open `sql/bootstrap.sql` from the repository in your editor.
-5. Copy the complete file and paste it into the SQL Editor.
-6. If you selected a different catalog/schema, confirm the replacements from
-   step 4.2 are present.
-7. Confirm that **Run all statements** is selected.
-8. Click **Run**.
-9. Wait for all statements to finish.
-
-The file ends with a sample score query. A successful run should return a row
-for `CLM-1001`. The SQL Editor supports semicolon-separated multi-statement
-queries; if your workspace shows a statement-level run option, keep **Run all
-statements** selected for the bootstrap.
-
-The script uses `INSERT OVERWRITE` for synthetic sample rows. Do not rerun it
-against a teammate’s shared data unless you have agreed that resetting the POC
-rows is safe.
-
-#### 4.4 Verify tables and functions
-
-In the same SQL Editor tab, run these checks one at a time:
-
-```sql
-SHOW TABLES IN workspace.insurance_fraud_poc;
-```
-
-```sql
-SHOW USER FUNCTIONS IN workspace.insurance_fraud_poc;
-```
-
-```sql
-SELECT *
-FROM workspace.insurance_fraud_poc.score_claim('CLM-1001');
-```
-
-If you used another namespace, replace the namespace in each check. You should
-see the POC tables, the listed UC functions, and a score row for `CLM-1001`.
-
-## Step 5 — Link resources to the App in the Databricks UI
-
-Do this from the App created in Step 1. You can add resources one at a time;
-you do not need to wait for all teammates before linking the first one.
-
-### 5.1 Open the App resources editor
-
-1. Open **Databricks Apps**.
-2. Click `insurance-fraud-supervisor-poc`.
-3. Click **Edit** or open the App configuration/settings view.
-4. Find **App resources**.
-5. Click **+ Add resource**.
-
-For every resource below, select the resource, choose the permission, set the
-custom key exactly as shown, and save the resource. Resource keys are case
-sensitive in the App configuration.
-
-### 5.2 Add the SQL warehouse
-
-1. Click **+ Add resource → SQL warehouse**.
-2. Select the teammate’s warehouse, or the warehouse from step 4.1.
-3. Select **Can use**.
-4. Set **Custom key** to:
-
-   ```text
-   supervisor-warehouse
-   ```
-
-5. Click **Add** or **Save**.
-
-The App receives the warehouse ID through `WAREHOUSE_ID`. Do not paste a
-warehouse ID into the Python source.
-
-### 5.3 Add the MLflow experiment
-
-1. Click **+ Add resource → MLflow experiment**.
-2. Select the experiment that the team will use for this App.
-3. Select **Can manage** for this development POC. If the team only wants the
-   App to record traces and not manage experiment settings, **Can edit** may be
-   sufficient; confirm with the experiment owner.
-4. Set **Custom key** to:
-
-   ```text
-   supervisor-experiment
-   ```
-
-5. Click **Add** or **Save**.
-
-The App receives the experiment ID through `MLFLOW_EXPERIMENT_ID`.
-
-If the experiment does not exist and you are responsible for creating it:
-
-1. Open **Workspace**.
-2. Navigate to a folder you own.
-3. Use **Create → MLflow experiment**.
-4. Name it `insurance-fraud-supervisor-poc`.
-5. Create it and record its experiment ID.
-6. Return to the App resource editor and link it as above.
-
-### 5.4 Add the model serving endpoint
-
-1. Click **+ Add resource → Serving endpoint**.
-2. Select the teammate’s chat-capable endpoint.
-3. Confirm that its state is **READY**.
-4. Select **Can query**.
-5. Set **Custom key** to:
-
-   ```text
-   supervisor-model
-   ```
-
-6. Click **Add** or **Save**.
-
-The App receives the endpoint name through `MODEL_ENDPOINT`. Do not use **Can
-manage** just to make inference work; **Can query** is the intended POC
-permission.
-
-If you are creating the endpoint yourself, open **Machine Learning → Serving**
-and use the foundation-model or other chat-model flow available in your
-workspace. The exact model catalog and endpoint creation controls vary by
-workspace entitlement. The only value this App needs is a queryable,
-Responses/ChatDatabricks-compatible endpoint that reaches **READY**.
-
-### 5.5 Add the MCP App
-
-The MCP App is a separate App. It must already exist and be `RUNNING` before
-the supervisor can call it.
-
-1. Click **+ Add resource → Databricks app**.
-2. Select the teammate’s MCP App by its exact App name.
-3. Select **Can use**.
-4. Set **Custom key** to:
-
-   ```text
-   supervisor-mcp-app
-   ```
-
-5. Click **Add** or **Save**.
-
-The App receives the MCP App name through `MCP_APP_NAME`. The supervisor uses
-that name to resolve the MCP App URL and calls the MCP endpoint internally; you
-do not paste the MCP URL into the supervisor code.
-
-The MCP App itself has separate resources. In the MCP App’s own configuration,
-its `app.yaml` uses the key `fraud-warehouse`, and its resource permissions
-include the `case_memory` table with **Modify** when controlled memory writes
-are enabled. Do not give the supervisor App Modify permission on
-`case_memory`; the supervisor does not silently write case memory.
-
-### 5.6 Add the Unity Catalog functions
-
-The custom supervisor calls the functions through Databricks SQL. Add each
-function as a separate resource.
-
-For every function:
-
-1. Click **+ Add resource → UC function**.
-2. Select the function using its full three-level name.
-3. Select **Can execute**.
-4. Set the custom key shown in the table.
-5. Click **Add** or **Save**.
-
-Use these twelve functions and keys:
-
-| Full function name | Custom key |
-|---|---|
-| `<catalog>.<schema>.get_claim_snapshot` | `claim-snapshot-function` |
-| `<catalog>.<schema>.evaluate_claim_rules` | `claim-rules-function` |
-| `<catalog>.<schema>.score_claim` | `claim-score-function` |
-| `<catalog>.<schema>.get_claim_entities` | `claim-entities-function` |
-| `<catalog>.<schema>.get_claim_network` | `claim-network-function` |
-| `<catalog>.<schema>.search_claim_documents` | `claim-documents-function` |
-| `<catalog>.<schema>.get_case_memory` | `case-memory-function` |
-| `<catalog>.<schema>.get_business_terms` | `business-terms-function` |
-| `<catalog>.<schema>.get_business_rules` | `business-rules-function` |
-| `<catalog>.<schema>.get_model_metadata` | `model-metadata-function` |
-| `<catalog>.<schema>.get_governance_controls` | `governance-function` |
-| `<catalog>.<schema>.get_audit_events` | `audit-events-function` |
-
-For the default POC namespace, replace `<catalog>.<schema>` with:
-
-```text
-workspace.insurance_fraud_poc
-```
-
-The custom keys for the functions are used to make the App configuration and
-permissions easy to inspect. The Python agent still builds the full function
-name from `FRAUD_CATALOG` and `FRAUD_SCHEMA`.
-
-When adding a UC function, Databricks may automatically grant the App service
-principal `USE CATALOG`, `USE SCHEMA`, and `EXECUTE`. If the automatic grant
-cannot be applied, the catalog/schema/function owner or administrator must
-grant those privileges before deployment.
-
-### 5.7 Save and inspect the final resource list
-
-Before leaving the resource editor, confirm that the App has:
-
-- one SQL warehouse with `supervisor-warehouse` and **Can use**;
-- one MLflow experiment with `supervisor-experiment`;
-- one READY serving endpoint with `supervisor-model` and **Can query**;
-- one RUNNING MCP App with `supervisor-mcp-app` and **Can use**; and
-- all twelve UC functions with **Can execute**.
-
-If one row is still `WAITING`, leave the App created but do not expect a
-successful deployment until the missing dependency is linked.
-
-## Step 6 — Confirm the App configuration file
-
-The repository’s `custom_agent/app.yaml` is already written for UI resource
-linking. Its important contents are:
+5. Open the folder.
+6. Use **Import**, **Upload**, or the three-dot menu, depending on your UI.
+7. Upload the prepared ZIP, or upload `app.yaml`, `pyproject.toml`, and
+   `requirements.txt`, then create/upload the `server` folder and its files.
+8. Confirm that `app.yaml` is directly inside the workspace folder you will
+   select as the App source.
+9. Open `app.yaml` in the Databricks editor and confirm that it contains these
+   resource bindings:
 
 ```yaml
 command: ["uv", "run", "start-server"]
 
 env:
-  - name: WAREHOUSE_ID
-    valueFrom: supervisor-warehouse
   - name: MLFLOW_TRACKING_URI
     value: databricks
   - name: MLFLOW_REGISTRY_URI
     value: databricks-uc
-  - name: MLFLOW_EXPERIMENT_ID
-    valueFrom: supervisor-experiment
-  - name: FRAUD_CATALOG
-    value: workspace
-  - name: FRAUD_SCHEMA
-    value: insurance_fraud_poc
   - name: MODEL_ENDPOINT
-    valueFrom: supervisor-model
+    valueFrom: LLM
   - name: MCP_APP_NAME
-    valueFrom: supervisor-mcp-app
+    valueFrom: ontobricks_kg
+  - name: CLAIM_TABLE
+    valueFrom: claim_360
+  - name: PARTY_TABLE
+    valueFrom: party_360
+  - name: LOCATION_TABLE
+    valueFrom: location_360
+  - name: POLICY_TABLE
+    valueFrom: policy_360
+  - name: VECTOR_SEARCH_INDEX
+    valueFrom: vector-search-index
+  - name: CLAIM_FRAUD_METRICS_TABLE
+    valueFrom: claim_fraud_metrics
 ```
 
-The `valueFrom` keys must match the custom resource keys from Step 5.
-Databricks resolves them when it deploys the App:
+The right side of each `valueFrom` line must exactly match an App resource key
+created in the next step. Keys are case-sensitive; `LLM` is uppercase.
 
-| Environment variable | `valueFrom` key | Resolved value |
-|---|---|---|
-| `WAREHOUSE_ID` | `supervisor-warehouse` | SQL warehouse ID |
-| `MLFLOW_EXPERIMENT_ID` | `supervisor-experiment` | MLflow experiment ID |
-| `MODEL_ENDPOINT` | `supervisor-model` | Serving endpoint name |
-| `MCP_APP_NAME` | `supervisor-mcp-app` | MCP App name |
+## Step 4 — Link the current resources
 
-If you use a catalog or schema other than `workspace.insurance_fraud_poc`,
-edit only the two static values in the uploaded workspace copy of
-`custom_agent/app.yaml`, save the file, and make sure the SQL functions use the
-same namespace. No Git commit is needed for a workspace-folder deployment.
-If you later switch to Git, commit the same change to the branch you deploy.
+1. Return to **Databricks Apps**.
+2. Open the App created in Step 1.
+3. Open **Configure**, **Settings**, or **App resources**.
+4. Click **Add resource** once for each row below.
 
-Do not edit `app/app.yaml` for this step. That file belongs to the separate MCP
-App. Do not edit `resources/custom_agent.app.yml` for the UI-only path; that
-file is the optional Declarative Automation Bundle definition.
+| Add this type | Select this resource | Permission | Resource key |
+|---|---|---|---|
+| Databricks app | `mcp-ontobricks-07x` | **Can use** | `ontobricks_kg` |
+| UC table | `dmpipeline-dev.ri_gold.claim_360` | **Can select** | `claim_360` |
+| UC table | `dmpipeline-dev.ri_gold.party_360` | **Can select** | `party_360` |
+| UC table | `dmpipeline-dev.ri_gold.location_360` | **Can select** | `location_360` |
+| UC table | `dmpipeline-dev.ri_gold.policy_360` | **Can select** | `policy_360` |
+| Serving endpoint | `databricks-claude-opus-5` | **Can query** | `LLM` |
+| AI Search index | `dmpipeline-dev.plane4.chunks_demo_index` | **Can select** | `vector-search-index` |
+| UC table | `dmpipeline-dev.ri_gold.claim_fraud_metrics` | **Can select** | `claim_fraud_metrics` |
 
-## Step 7 — Deploy the custom App from the Databricks UI
+For each resource:
 
-Do this only after the required resources are linked.
+1. Choose the type in the first column.
+2. Use the picker to find the exact resource in the second column.
+3. Choose the permission in the third column.
+4. Type the resource key in the fourth column.
+5. Save or add the resource.
+6. Check the completed list before adding the next one.
 
-1. Open **Databricks Apps**.
-2. Click `insurance-fraud-supervisor-poc`.
-3. Click **Deploy**.
-4. If Databricks asks for a deployment source, choose **Workspace folder**.
-5. Select the workspace folder that contains `app.yaml` directly at its top
-   level. For the ZIP steps above, this is the extracted `custom_agent` folder.
-6. Click **Select**.
-7. Click **Deploy**.
-8. Wait for the deployment build and startup checks to finish.
-9. Confirm the App status changes to **RUNNING**.
+If a resource does not appear, do not substitute a similarly named resource.
+Ask its owner or a workspace administrator to confirm that it exists in this
+workspace and that you may grant it to the App identity.
 
-Databricks installs the dependencies from the App source and starts the
-command in `custom_agent/app.yaml`. The App URL is generated from the App name
-and workspace; it is different in every workspace. Do not reuse the URL from
-the original demo workspace.
+## Step 5 — Understand the SQL warehouse gap
 
-If the App configuration or resource bindings changed, redeploy the App from
-the same workspace folder so the new environment values are applied.
+The eight resources above are enough for the App to start and for the model,
+AI Search index, and MCP App integrations to run. They are not enough to issue
+SQL statements against the five UC tables.
 
-If you later switch to Azure DevOps or another supported Git provider, click
-**Deploy → From Git** instead, select the branch, and set the source code path
-to `custom_agent`.
+`Can select` is data authorization. A SQL warehouse is the compute that
+executes the query. The supervisor handles this safely: when no warehouse is
+linked, it records each direct table plane as unavailable instead of crashing
+the server.
+
+To turn on direct table reads:
+
+1. Open the App’s **App resources** page.
+2. Click **Add resource**.
+3. Choose **SQL warehouse**.
+4. Select a running or auto-starting serverless SQL warehouse approved for the
+   POC.
+5. Choose **Can use**.
+6. Set the resource key to:
+
+   ```text
+   sql-warehouse
+   ```
+
+7. Save the resource.
+8. Open the uploaded `app.yaml`.
+9. Add these two lines under `env`:
+
+   ```yaml
+     - name: WAREHOUSE_ID
+       valueFrom: sql-warehouse
+   ```
+
+10. Save `app.yaml` and redeploy in Step 7.
+
+If the team truly cannot provide a SQL warehouse for this POC, leave the code
+as-is. The app remains usable, but any answer must disclose that direct table
+evidence was unavailable.
+
+## Step 6 — Confirm identifiers used by your tables
+
+The default claim format is `CLM-1001`, and the two baseline tables are
+expected to contain a `claim_id` column. The supervisor reads table metadata at
+runtime and only uses relationship columns that actually exist.
+
+Default relationship candidates are:
+
+| Plane | Candidate columns, in order |
+|---|---|
+| `claim_profile` | `claim_id` |
+| `fraud_metrics` | `claim_id` |
+| `party_profile` | `party_id`, `claimant_party_id`, `insured_party_id`, `claim_id` |
+| `location_profile` | `location_id`, `loss_location_id`, `address_id`, `claim_id` |
+| `policy_profile` | `policy_id`, `claim_id` |
+
+The baseline claim row is queried first. IDs found in that evidence can then be
+used to query party, location, and policy tables. If your actual column names
+are different, use the dynamic configuration procedure in Step 10 instead of
+editing query logic.
+
+If claim IDs follow a different pattern, add plain values to `app.yaml`, for
+example:
+
+```yaml
+  - name: CLAIM_ID_REGEX
+    value: '\bAZ-[0-9]{8}\b'
+  - name: CLAIM_ID_EXAMPLE
+    value: AZ-00001234
+```
+
+## Step 7 — Deploy the App from the workspace folder
+
+1. Return to **Databricks Apps** and open your App.
+2. Click **Deploy** or **Create deployment**.
+3. For source type, choose **Workspace folder**.
+4. Browse to the folder uploaded in Step 3.
+5. Select the folder whose top level contains `app.yaml`.
+6. Confirm the deployment.
+7. Watch the deployment status and logs.
+8. Wait for the App status to become **Running**.
+
+The first build installs `uv`, resolves the Python dependencies from
+`pyproject.toml`, and starts the MLflow Responses Agent server. It can take a
+few minutes.
+
+If the deployment reports that a `valueFrom` key cannot be resolved, compare
+every key in Step 3 with the App resource list in Step 4. The most common error
+is a capitalization or hyphen mismatch.
 
 ## Step 8 — Run the browser demo
 
-No terminal or access token is needed for this test.
-
-### 8.1 Open the App
-
-1. On the App overview page, click the generated **App URL** or **Open app**.
-2. If prompted, complete the normal Databricks browser sign-in.
-3. Wait for the page titled **Insurance fraud supervisor**.
-
-The page is the document-style UI in `custom_agent/server/ui.py`.
-
-### 8.2 Run the basic claim test
-
-1. Leave the default question, or paste:
+1. On the App overview page, click **Open app**.
+2. Wait for the supervisor page to load.
+3. Enter a real POC claim ID using a request such as:
 
    ```text
-   For CLM-1001, give me a concise triage summary with the strongest risk signals and the next human-review step.
+   For CLM-1001, give me a concise fraud-risk triage summary and explain which resources were consulted.
    ```
 
-2. Click **Generate memo**.
-3. Wait for the memo to appear.
+4. Click **Generate memo**.
+5. Read the answer.
+6. Expand **Supervisor orchestration trace**.
+7. Verify that the diagram shows decision, query, and synthesis steps.
+8. Check each resource status.
 
-A successful result should contain:
+Expected behavior without a warehouse:
 
-- a claim-specific triage memo for `CLM-1001`;
-- evidence-led risk signals rather than a declaration that fraud occurred;
-- a human-review next step; and
-- an open **Supervisor orchestration trace** section.
+- the App itself loads;
+- the model can route and synthesize;
+- `document_search` can query the linked AI Search index when selected;
+- `knowledge_graph` can discover tools from `mcp-ontobricks-07x` when selected;
+- direct table planes say `unavailable` and identify `WAREHOUSE_ID` as missing.
 
-The trace diagram shows the request, each decision, the selected planes, the
-governed function/tool calls, and synthesis. It is intentionally a safe
-execution trace. It does not reveal private model chain-of-thought, hidden
-prompts, or secret values.
+Expected behavior after a warehouse is linked:
 
-### 8.3 Run the clarification test
+- `claim_profile` and `fraud_metrics` show `query_table` operations;
+- related planes run when the router needs them and a usable relationship ID
+  was found;
+- the trace includes row counts and the exact linked resource name.
 
-Replace the question with:
+## Step 9 — Pin the intended Ontobricks MCP tool if needed
 
-```text
-What can you investigate?
-```
+The supervisor first calls MCP `list_tools()`. It can automatically call a tool
+only when the tool looks read-only and all required inputs map to the claim ID
+or user question.
 
-Click **Generate memo**. The supervisor should ask for a claim identifier and
-should not query claim-specific functions. This confirms that the loop can stop
-when required information is missing.
+If the trace says `missing_configuration`:
 
-### 8.4 Run the network-plane test
+1. Expand the raw trace.
+2. Find `available_tools` under `knowledge_graph`.
+3. Ask the Ontobricks owner which listed tool is the intended read-only query.
+4. Confirm its required arguments through the MCP tool schema or owner.
+5. Add this plain environment value to `app.yaml`:
 
-Replace the question with:
-
-```text
-For CLM-1002, show the linked entities and network signals, then recommend the smallest human review step.
-```
-
-The trace should include the `network` plane and the
-`get_claim_network` function if that function is available and permitted.
-
-### 8.5 Check the lightweight health route
-
-Copy the App URL from the App overview page, append `/health`, and open it in
-the same signed-in browser. A running server should return a small successful
-health response. If the health route fails, use the App’s **Logs** tab before
-debugging the data or model resources.
-
-## Step 9 — Optional: create the evaluation harness through the Jobs UI
-
-The App demo is complete without this step. The harness is for checking the
-supervisor contract and recording evaluation traces in MLflow.
-
-The existing evaluation code is `eval/evaluate_supervisor.py`, and its three
-synthetic cases are in `eval/test_cases.json`.
-
-### 9.1 Create a Lakeflow Job
-
-1. Open **Jobs & Pipelines** from the left sidebar.
-2. Click **Create → Job**.
-3. Set the job name to:
-
-   ```text
-   insurance-fraud-supervisor-evaluation
+   ```yaml
+     - name: MCP_TOOL_NAME
+       value: exact_read_tool_name
    ```
 
-4. Add a task with type **Python script**.
-5. Set the task name to `evaluate_supervisor`.
+6. Save and redeploy.
 
-### 9.2 Configure the workspace source
+Do not pin a create, update, delete, insert, or other write-capable tool for the
+automatic triage loop.
 
-The no-Git path needs the `eval/` folder alongside `custom_agent/` in the
-workspace. If you imported only `custom_agent/` for the App:
+## Step 10 — Add another resource later
 
-1. On your computer, right-click the repository’s `eval` folder and create
-   `eval.zip` using the same Compress/Send to ZIP action from Step 2.3.
-2. In Databricks, open the project folder’s kebab menu and choose **Import**.
-3. Import `eval.zip` and wait for it to extract. Do not create a second nested
-   `eval` folder if the ZIP already contains one.
-4. In the Python script task, choose **Workspace** as the source.
-5. Set the script path to the full workspace path of:
+Suppose the team adds
+`dmpipeline-dev.ri_gold.provider_360`.
 
-   ```text
-   /Workspace/Users/<your-user>/insurance-fraud-supervisor-poc/eval/evaluate_supervisor.py
+1. Open the App’s **App resources** page.
+2. Add it as a **UC table** with **Can select**.
+3. Set its resource key to `provider_360`.
+4. Add this binding to `app.yaml`:
+
+   ```yaml
+     - name: PROVIDER_TABLE
+       valueFrom: provider_360
    ```
 
-6. Confirm that the same parent folder contains both `custom_agent/` and
-   `eval/`.
+5. Add or update this configuration value under `env`:
 
-The script uses its own path to find `custom_agent/server/agent.py` and
-`eval/test_cases.json`. If your workspace uses a different folder name, use
-that full path instead.
-
-If you later receive an approved Azure DevOps repository, you can choose Git as
-the Job source instead and use `eval/evaluate_supervisor.py` as the script
-path.
-
-### 9.3 Configure serverless Python dependencies
-
-1. In the Python script task, find **Environment and Libraries**.
-2. Add a serverless Python environment. If the UI exposes an environment
-   version, use version `2` or the current compatible version offered by your
-   workspace.
-3. Add these dependencies, one per entry:
-
-   ```text
-   mlflow[databricks]>=3.10.0
-   databricks-sdk>=0.60.0
-   databricks-agents>=1.9.3
-   databricks-langchain>=0.17.0
-   databricks-mcp
-   langchain-core>=0.3.0
-   langgraph>=1.1.0
-   pydantic>=2.0.0
-   python-dotenv>=1.0.0
+   ```yaml
+     - name: SUPERVISOR_RESOURCE_CONFIG_JSON
+       value: '{"planes":[{"name":"provider_profile","description":"Related provider details.","kind":"table","env_var":"PROVIDER_TABLE","lookup_columns":["provider_id","claim_id"]}]}'
    ```
 
-4. Confirm or apply the environment.
+6. Save and redeploy.
+7. Ask a provider-related question and verify that the router can select
+   `provider_profile`.
 
-If your workspace does not allow serverless Jobs, ask a Job administrator for
-the approved development compute option. Do not add production compute for
-this POC.
+An entry with an existing plane `name` overrides that default. Use this to
+change lookup columns in another workspace. Supported kinds are `table`,
+`vector_search`, and `mcp`.
 
-### 9.4 Add the Python script parameters
+## Step 11 — Health and frontend endpoints
 
-The Python script expects a JSON array of command-line-style arguments. In the
-task’s **Parameters** field, enter the following and replace the angle-bracket
-values with the resources actually linked in your workspace:
+The browser UI is the simplest demo and uses your logged-in browser session.
+For a future application-owned frontend:
 
-```json
-[
-  "--warehouse-id", "<warehouse-id>",
-  "--catalog", "<catalog>",
-  "--schema", "<schema>",
-  "--model-endpoint", "<serving-endpoint-name>",
-  "--mcp-app-name", "<mcp-app-name>",
-  "--mlflow-experiment-id", "<experiment-id>"
-]
-```
+- `GET /health` checks whether the App server is available.
+- `POST /responses` accepts Responses-Agent requests.
+- `custom_inputs.debug_trace=true` returns the safe supervisor trace in
+  `custom_outputs.supervisor_trace`.
 
-For the default POC, the catalog and schema are `workspace` and
-`insurance_fraud_poc`. The Job’s run-as identity needs permission to use the
-warehouse, query the model endpoint, access the experiment, execute the UC
-functions, and use the MCP App. App resource bindings do not automatically
-grant those permissions to a separate Job identity.
+Do not expose a workspace OAuth token in browser JavaScript. The frontend auth
+design should be completed before external users are connected.
 
-### 9.5 Run and inspect the harness
+## Troubleshooting
 
-1. Leave the schedule unset so the Job is manual.
-2. Click **Save**.
-3. Click **Run now**.
-4. Open the run details and inspect the task output.
-5. Confirm the JSON summary reports the case count and a
-   `contract_pass_rate` of `1.0`.
-6. Open the linked MLflow experiment and inspect the evaluation run and traces.
-
-If a case fails, read the failed contract check in the Job output. The harness
-checks trace presence, claim IDs, required planes/functions, human-review
-language, and clarification behavior; it does not decide whether any claim is
-fraudulent.
-
-## Step 10 — Link future teammate changes without rebuilding the App
-
-### 10.1 Teammate creates or changes an existing resource
-
-1. Ask for the exact new resource name or ID.
-2. Ask the owner to grant you permission to manage the resource and edit the
-   App, if you do not already have it.
-3. Open **Databricks Apps → insurance-fraud-supervisor-poc**.
-4. Open the App configuration and **App resources**.
-5. Add or replace the resource using the correct key from Step 5.
-6. Save the App configuration.
-7. If the code/config changed, update the corresponding workspace files.
-8. Click **Deploy**, select the same workspace source folder, and deploy again.
-9. Run the browser test again.
-
-Changing the linked warehouse, experiment, model endpoint, or MCP App does not
-require changing Python code because the App reads those values through
-`valueFrom`.
-
-### 10.2 Teammate creates a new UC function
-
-Linking a new function gives the App permission to execute it, but it does not
-automatically make the supervisor call it. For an existing plane, confirm the
-function is one of the twelve names in Step 5. For a genuinely new plane, the
-code change must include:
-
-1. a new `PlaneSpec` in `custom_agent/server/plane_registry.py`;
-2. the function mapping in `custom_agent/server/agent.py`;
-3. a trace/evaluation case proving the new route; and
-4. a new UC function resource link in the App UI.
-
-Deploy the code and the resource link together, then rerun the browser test.
-
-### 10.3 Teammate changes the MCP App
-
-If the MCP App is replaced rather than updated:
-
-1. remove or edit the old `supervisor-mcp-app` resource;
-2. select the new running MCP App;
-3. keep the custom key `supervisor-mcp-app`; and
-4. redeploy the supervisor App.
-
-If the trace reports an unavailable MCP tool or the request returns HTTP 503,
-open the MCP App itself and check its status and logs first. Then confirm that
-the supervisor’s App resource points to the new exact App name.
-
-## Common problems and the UI fix
-
-| Symptom | Check first | Fix |
-|---|---|---|
-| Databricks Apps is missing | Workspace feature availability | Ask an admin to enable Databricks Apps/serverless Apps |
-| App exists but is not running | App overview status | Deploy the App after linking all required resources |
-| Workspace upload cannot read the code | Workspace folder or missing files | Select the folder with `app.yaml` at its top level and confirm `server/` was extracted |
-| Git deployment cannot read the repo | Only relevant if you later choose Git | Configure the App service principal’s Git credential or use a permitted Azure DevOps repository |
-| `app.yaml` resource resolution fails | Resource key spelling | Match `supervisor-warehouse`, `supervisor-experiment`, `supervisor-model`, and `supervisor-mcp-app` exactly |
-| `WAREHOUSE_ID` is missing | SQL warehouse resource | Add the warehouse with custom key `supervisor-warehouse` and **Can use** |
-| Model call fails | Endpoint state and permission | Use a chat-capable endpoint in **READY** state with **Can query** |
-| UC function is not visible | Function exists and you have **Can manage** | Ask the function owner/admin to grant access, then add it as **UC function → Can execute** |
-| UC function returns permission denied | Catalog/schema/function privileges | Ask the owner/admin for `USE CATALOG`, `USE SCHEMA`, and `EXECUTE` |
-| MCP call returns HTTP 503 | Target MCP App status | Make sure the MCP App is running and the supervisor links the correct App name |
-| Browser page does not load | App status and Logs tab | Check `/health`, then read the first startup error in Logs |
-| Memo appears without a trace | Trace request/UI state | Run from the App UI; the UI requests `debug_trace=true` automatically |
-| No response from an old terminal test | Local shell tooling or expired token | Use the browser UI; this guide intentionally does not require terminal authentication |
-| Bootstrap overwrote sample rows | `INSERT OVERWRITE` in the SQL | Treat the bootstrap as synthetic POC setup; do not run it on shared data without agreement |
-
-When diagnosing deployment, inspect the App’s **Logs** tab first. The most
-useful startup clues are missing resource keys, invalid `app.yaml` syntax,
-dependency installation failures, and permission errors.
-
-## Final success checklist
-
-You are finished with the UI-only POC when all of these are true:
-
-- [ ] The custom App `insurance-fraud-supervisor-poc` exists.
-- [ ] The App deploy source is a workspace folder with `app.yaml` at its top level.
-- [ ] The SQL warehouse is linked as `supervisor-warehouse` with **Can use**.
-- [ ] The MLflow experiment is linked as `supervisor-experiment`.
-- [ ] The model endpoint is linked as `supervisor-model` with **Can query** and is READY.
-- [ ] The MCP App is linked as `supervisor-mcp-app` with **Can use** and is RUNNING.
-- [ ] All twelve UC functions are linked with **Can execute**.
-- [ ] The App status is **RUNNING**.
-- [ ] The browser demo returns a memo for `CLM-1001`.
-- [ ] The memo shows the safe trace diagram.
-- [ ] The missing-claim test asks for a claim identifier without querying claim data.
-- [ ] The optional evaluation job, if created, reports a contract pass rate of `1.0`.
-
-## Which repository files matter for this UI workflow?
-
-| File | Use it for |
+| Symptom | Check |
 |---|---|
-| `custom_agent/app.yaml` | Custom App startup command and UI resource bindings |
-| `custom_agent/server/agent.py` | Bounded supervisor loop and Responses API |
-| `custom_agent/server/ui.py` | Browser memo and trace diagram |
-| `custom_agent/server/uc_tools.py` | Parameterized UC function calls |
-| `custom_agent/server/mcp_tools.py` | App-to-App MCP connection |
-| `custom_agent/server/plane_registry.py` | Allowlisted planes and routing validation |
-| `sql/bootstrap.sql` | Synthetic tables, rows, and UC functions |
-| `app/app.yaml` | Separate MCP App configuration; do not use for supervisor deployment |
-| `eval/evaluate_supervisor.py` | Optional Jobs UI evaluation harness |
-| `eval/test_cases.json` | Synthetic evaluation contract cases |
-| `resources/*.yml` | Optional automation definitions; not required for this UI-only guide |
-| `databricks.yml` | Optional bundle configuration; not required for this UI-only guide |
+| App shows Service unavailable immediately | Deployment logs; missing `valueFrom` keys; source folder contains `app.yaml` |
+| `valueFrom` resolution failed | Match `LLM`, `ontobricks_kg`, `claim_360`, `party_360`, `location_360`, `policy_360`, `vector-search-index`, and `claim_fraud_metrics` exactly |
+| Table plane says `WAREHOUSE_ID` missing | Add the optional SQL warehouse in Step 5 and redeploy |
+| Table metadata or query is permission denied | Confirm the table is linked with **Can select** and the App identity can use the catalog/schema |
+| Related table says `missing_input` | The earlier evidence did not expose a configured relationship ID; check Step 6 |
+| AI Search returns unavailable | Confirm the exact index is ONLINE and linked with **Can select** |
+| MCP returns HTTP 503 | Open `mcp-ontobricks-07x`, confirm it is Running, then inspect its logs and downstream dependencies |
+| MCP lists tools but does not call one | Follow Step 9 and pin the confirmed read-only tool |
+| Model query fails | Confirm `databricks-claude-opus-5` is READY and the App has **Can query** |
+| App asks for a claim ID you supplied | Adjust `CLAIM_ID_REGEX` to the actual identifier format |
 
-## Optional native Supervisor comparison
+## Final verification checklist
 
-If you also want to compare the native Databricks experience:
+- [ ] The custom App shell exists.
+- [ ] The workspace source folder contains `app.yaml` at its top level.
+- [ ] All eight current resources are linked with the exact keys in Step 4.
+- [ ] The App reaches **Running**.
+- [ ] The browser UI opens.
+- [ ] A claim request returns a memo and safe trace diagram.
+- [ ] MCP tool discovery succeeds, or the intended read-only tool is pinned.
+- [ ] The SQL warehouse is linked if direct UC table rows are required.
+- [ ] No token, password, or secret is stored in the uploaded source.
 
-1. Open the **Agents** area in Databricks.
-2. Choose **Create Agent**.
-3. Choose **Supervisor Agent** if that option is available.
-4. Add the appropriate tools or subagents and provide the instructions from
-   `supervisor/instructions.md`.
+## Official references
 
-That creates a separate native Agent Bricks object. It does not deploy the
-custom LangGraph code, the document-style UI, or the `/responses` API from this
-repository. Keep it separate from `insurance-fraud-supervisor-poc`.
-
-## Official Databricks references
-
-- [Create a custom Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/create-custom-app)
-- [Deploy a Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/deploy)
-- [Add resources to a Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/resources)
-- [Define environment variables in a Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/environment-variables)
-- [Add a Databricks App resource](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/apps-resource)
-- [Add a UC function resource](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/functions)
-- [Add a model serving endpoint resource](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/model-serving)
-- [Run multi-statement queries in SQL Editor](https://learn.microsoft.com/en-us/azure/databricks/sql/user/sql-editor/run-queries)
-- [Workspace files: create and import](https://learn.microsoft.com/en-us/azure/databricks/files/workspace-basics)
-- [Configure and edit Lakeflow Jobs](https://learn.microsoft.com/en-us/azure/databricks/jobs/configure-job)
-- [Configure the serverless environment](https://learn.microsoft.com/en-us/azure/databricks/compute/serverless/dependencies)
-- [Configure Python script task parameters](https://learn.microsoft.com/en-us/azure/databricks/jobs/task-parameters)
-- [Create MLflow experiments](https://learn.microsoft.com/en-us/azure/databricks/mlflow/experiments)
+- [Databricks App resources](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/resources)
+- [Add an AI Search index to a Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/vector-search)
+- [Use MCP servers in custom agents](https://learn.microsoft.com/en-us/azure/databricks/agents/agent-framework/agent-tool)
+- [Databricks SQL Statement Execution API](https://learn.microsoft.com/en-us/azure/databricks/sql/api/statements)

@@ -3,10 +3,11 @@
 Last reviewed: 2026-08-27
 
 This is the UI-only, beginner-friendly build order for recreating the POC in a
-different Databricks workspace. It starts by creating the custom Databricks App
-so the app identity exists first. You then link the SQL warehouse, MLflow
-experiment, model endpoint, MCP App, and Unity Catalog functions as your
-teammates make them available.
+different Azure Databricks workspace. It starts by creating the custom
+Databricks App so the app identity exists first. You then manually upload the
+App code to a workspace folder and link the SQL warehouse, MLflow experiment,
+model endpoint, MCP App, and Unity Catalog functions as your teammates make
+them available.
 
 You do not need the Databricks CLI, a local terminal, an access token, or a
 `databricks.yml` deployment to follow this guide. Browser sign-in supplies your
@@ -65,12 +66,12 @@ Agent Bricks Supervisor wizard for the primary path.
 ## Build order at a glance
 
 1. Create the custom App shell.
-2. Connect the Git repository and identify `custom_agent/` as the App source.
+2. Upload the `custom_agent/` folder to a workspace folder.
 3. Collect teammate resource names and IDs in the handoff table.
 4. Create or verify the catalog, schema, tables, and UC functions.
 5. Add each available dependency under the App’s **App resources** section.
 6. Confirm the App’s `app.yaml` resource keys match the linked resources.
-7. Deploy from Git in the Databricks UI.
+7. Deploy from the workspace folder in the Databricks UI.
 8. Open the generated App URL and run the browser demo.
 9. Optionally create the evaluation job through the Jobs UI.
 
@@ -87,9 +88,9 @@ resource.
 | Setting | Default for this POC | Where it is used |
 |---|---|---|
 | Custom App name | `insurance-fraud-supervisor-poc` | Databricks Apps; permanent name |
-| Git repository | `https://github.com/aarnav-11/databricks` | App source |
-| Git reference | `main` | Branch to deploy |
-| App source path | `custom_agent` | The folder treated as the App root |
+| Deployment source | Workspace folder uploaded through the UI | App source |
+| App source folder | A workspace folder containing `app.yaml` | The folder treated as the App root |
+| Optional source repo | `https://github.com/aarnav-11/databricks` | Only if Git is available |
 | Unity Catalog catalog | `workspace` | `FRAUD_CATALOG` |
 | Unity Catalog schema | `insurance_fraud_poc` | `FRAUD_SCHEMA` |
 | SQL warehouse | teammate-provided | `supervisor-warehouse` resource |
@@ -136,27 +137,30 @@ fix a disabled workspace feature from the repository.
 
 5. Click **Next: Configure Git**.
 
-### 1.3 Connect the repository
+The screen is part of the custom-App wizard; you do not have to choose a Git
+provider on it. Continue to Step 1.3 and leave the provider unconfigured.
 
-Use the repository that contains this project.
+### 1.3 Skip Git when the provider is unavailable
 
-1. Select **GitHub** as the Git provider. If your team uses a fork, select the
-   provider that hosts that fork.
-2. Enter the repository URL:
+You do not need GitHub, Azure DevOps, or any other Git provider for this
+workflow. The source will be uploaded into a Databricks workspace folder in
+Step 2.
 
-   ```text
-   https://github.com/aarnav-11/databricks
-   ```
+1. On the Git configuration screen, look for **Skip**, **Next: Configure**, or
+   **Create app** without selecting a provider. The exact button depends on the
+   workspace UI version.
+2. Leave Git unconfigured.
+3. Continue to the configuration screen, if one is shown.
 
-3. Select or enter the Git reference `main`.
-4. If Databricks asks for Git credentials and the repository is private, click
-   the option to configure a Git credential and complete the provider login.
-   A public repository does not need a repository credential.
-5. Click **Next: Configure**.
+If your workspace does not offer a skip option, ask a workspace administrator
+whether **Only allow app deployments from Git** is enabled under the Apps
+development settings. That workspace policy must be relaxed for this manual
+workspace-folder deployment, or an administrator must provide an approved Git
+provider/repository. Azure Databricks supports workspace-folder deployments;
+being on Azure does not by itself require GitHub.
 
-Do not enable automatic deployment yet unless your team specifically wants
-every push to redeploy the POC. Manual deployment is easier while teammates
-are still changing linked resources.
+Do not enable automatic deployment. The manual upload path is easier while
+teammates are still changing linked resources.
 
 ### 1.4 Save without deploying
 
@@ -171,14 +175,16 @@ At this point the App shell is complete. It is normal for it not to be
 `RUNNING` yet. Do not delete and recreate it when a teammate gives you a new
 warehouse, model endpoint, or MCP App; add the new resource to this same App.
 
-## Step 2 — Confirm which code Databricks will deploy
+## Step 2 — Upload the supervisor code manually
 
-The repository has more than one deployable component. The supervisor App must
-use the `custom_agent` directory as its top-level source directory.
+The repository has more than one deployable component. Upload only the
+`custom_agent` directory for this App. The `app/` directory is the separate MCP
+App and is not part of the supervisor upload.
 
 ### 2.1 Confirm the required files
 
-The folder selected as the App source must contain these files:
+The workspace folder selected as the App source must contain these files at its
+top level:
 
 ```text
 custom_agent/
@@ -194,34 +200,89 @@ custom_agent/
     └── ui.py
 ```
 
-`custom_agent/app.yaml` starts the server with `uv run start-server`.
-Databricks reads this file from the root of the selected App source path.
+`app.yaml` starts the server with `uv run start-server`. Databricks reads it
+from the root of the selected App source folder.
 
-Do not select the repository root for this App unless you intentionally copy
-the custom agent files there. Do not select `app/`; that is the MCP App.
-
-### 2.2 If the repository is private
-
-On the App overview page, use **Configure Git credential** if Databricks shows
-that control. You need permission to manage the App and a Git credential that
-can read the repository. If you cannot configure it, ask the repository owner
-or workspace administrator to grant access; do not paste a Git token into
-`app.yaml`.
-
-### 2.3 If you cannot use Git for this App
-
-The primary path is Git because the source is already organized in this
-repository. If your workspace requires workspace-folder deployments instead:
+### 2.2 Create a workspace folder
 
 1. Open **Workspace** from the left sidebar.
-2. Create or select a folder where you can store App files.
-3. Use the workspace **Import** or **Upload** action to place the complete
-   contents of `custom_agent/` into a dedicated folder.
-4. Make sure `app.yaml`, `pyproject.toml`, `requirements.txt`, and the `server/`
-   directory are at the folder’s top level.
-5. Later, in the App overview page, click **Deploy** and select that folder.
+2. Open your user folder, or another folder where you have permission to add
+   files.
+3. Click **Create → Folder**.
+4. Name the folder:
 
-Do not mix the Git and workspace-folder source methods for the same deployment.
+   ```text
+   insurance-fraud-supervisor-poc
+   ```
+
+5. Open the new folder.
+
+### 2.3 Make a ZIP of `custom_agent` on your computer
+
+This is the simplest way to upload the nested `server/` folder without using
+the CLI.
+
+1. On your computer, open the repository folder.
+2. Right-click the `custom_agent` folder.
+3. On macOS, choose **Compress “custom_agent”**. On Windows, choose **Send to
+   → Compressed (zipped) folder**.
+4. Keep the resulting `custom_agent.zip` somewhere easy to find.
+
+The ZIP should contain the `custom_agent` folder, with `app.yaml` directly
+inside it and `server/` underneath it. Do not ZIP the entire repository for
+this App.
+
+### 2.4 Import the ZIP into the workspace
+
+1. In the open Databricks folder from step 2.2, click the folder’s **kebab menu
+   (⋮)**.
+2. Choose **Import**.
+3. Drag `custom_agent.zip` into the import dialog, or click **Browse** and
+   select it.
+4. Confirm the import.
+5. Wait for the upload and automatic ZIP extraction to finish.
+
+Azure Databricks extracts an imported ZIP. The expected final path is similar
+to:
+
+```text
+/Workspace/Users/<your-user>/insurance-fraud-supervisor-poc/custom_agent/app.yaml
+```
+
+If the extracted folder has a different parent name, that is fine. The folder
+you select during deployment must be the folder where `app.yaml` is located
+directly at the top level.
+
+### 2.5 Verify the uploaded files in the browser
+
+1. Open the extracted `custom_agent` folder.
+2. Confirm that `app.yaml`, `pyproject.toml`, and `requirements.txt` are
+   visible.
+3. Open the `server` folder.
+4. Confirm that `agent.py`, `mcp_tools.py`, `plane_registry.py`,
+   `start_server.py`, `uc_tools.py`, and `ui.py` are visible.
+5. Open `app.yaml` and confirm that it contains the resource keys
+   `supervisor-warehouse`, `supervisor-experiment`, `supervisor-model`, and
+   `supervisor-mcp-app`.
+
+If you use a catalog or schema other than `workspace.insurance_fraud_poc`, edit
+the two static values in this workspace copy of `app.yaml`. Workspace file
+edits are saved automatically. The resource-linked values must remain
+`valueFrom` references.
+
+### 2.6 Manual upload fallback if ZIP import is disabled
+
+If your workspace blocks ZIP import, create the `custom_agent` folder and its
+`server` subfolder manually, then use **Import** to upload each file into the
+matching folder. You need the same files listed in step 2.1. This is slower but
+still does not require Git or the CLI.
+
+### 2.7 Optional Git path
+
+If your team later makes an Azure DevOps repository available, you can switch
+to a Git deployment. Select **Azure DevOps** only when the code is actually in
+that repository. GitHub is not required, and the workspace-folder path above
+is the recommended path for your current setup.
 
 ## Step 3 — Collect the teammate handoff information
 
@@ -576,9 +637,10 @@ Databricks resolves them when it deploys the App:
 | `MCP_APP_NAME` | `supervisor-mcp-app` | MCP App name |
 
 If you use a catalog or schema other than `workspace.insurance_fraud_poc`,
-edit only the two static values in `custom_agent/app.yaml`, commit the change to
-the branch you will deploy, and make sure the SQL functions use the same
-namespace.
+edit only the two static values in the uploaded workspace copy of
+`custom_agent/app.yaml`, save the file, and make sure the SQL functions use the
+same namespace. No Git commit is needed for a workspace-folder deployment.
+If you later switch to Git, commit the same change to the branch you deploy.
 
 Do not edit `app/app.yaml` for this step. That file belongs to the separate MCP
 App. Do not edit `resources/custom_agent.app.yml` for the UI-only path; that
@@ -591,20 +653,13 @@ Do this only after the required resources are linked.
 1. Open **Databricks Apps**.
 2. Click `insurance-fraud-supervisor-poc`.
 3. Click **Deploy**.
-4. Choose **From Git**.
-5. Select the configured Git repository.
-6. For **Git reference**, enter `main` or the branch containing your latest
-   `custom_agent/` code.
-7. Set **Reference type** to **Branch**.
-8. For **Source code path**, enter:
-
-   ```text
-   custom_agent
-   ```
-
-9. Click **Deploy**.
-10. Wait for the deployment build and startup checks to finish.
-11. Confirm the App status changes to **RUNNING**.
+4. If Databricks asks for a deployment source, choose **Workspace folder**.
+5. Select the workspace folder that contains `app.yaml` directly at its top
+   level. For the ZIP steps above, this is the extracted `custom_agent` folder.
+6. Click **Select**.
+7. Click **Deploy**.
+8. Wait for the deployment build and startup checks to finish.
+9. Confirm the App status changes to **RUNNING**.
 
 Databricks installs the dependencies from the App source and starts the
 command in `custom_agent/app.yaml`. The App URL is generated from the App name
@@ -612,7 +667,11 @@ and workspace; it is different in every workspace. Do not reuse the URL from
 the original demo workspace.
 
 If the App configuration or resource bindings changed, redeploy the App from
-the same Git branch so the new environment values are applied.
+the same workspace folder so the new environment values are applied.
+
+If you later switch to Azure DevOps or another supported Git provider, click
+**Deploy → From Git** instead, select the branch, and set the source code path
+to `custom_agent`.
 
 ## Step 8 — Run the browser demo
 
@@ -700,21 +759,33 @@ synthetic cases are in `eval/test_cases.json`.
 4. Add a task with type **Python script**.
 5. Set the task name to `evaluate_supervisor`.
 
-### 9.2 Configure the Git source
+### 9.2 Configure the workspace source
 
-1. In the Job details pane, click **Add Git settings**.
-2. Enter the same repository URL used for the App.
-3. Select the correct Git provider.
-4. Select branch `main`, or the branch containing the supervisor code.
-5. If prompted, configure Git credentials for the repository.
-6. In the Python script task, set the script path to:
+The no-Git path needs the `eval/` folder alongside `custom_agent/` in the
+workspace. If you imported only `custom_agent/` for the App:
+
+1. On your computer, right-click the repository’s `eval` folder and create
+   `eval.zip` using the same Compress/Send to ZIP action from Step 2.3.
+2. In Databricks, open the project folder’s kebab menu and choose **Import**.
+3. Import `eval.zip` and wait for it to extract. Do not create a second nested
+   `eval` folder if the ZIP already contains one.
+4. In the Python script task, choose **Workspace** as the source.
+5. Set the script path to the full workspace path of:
 
    ```text
-   eval/evaluate_supervisor.py
+   /Workspace/Users/<your-user>/insurance-fraud-supervisor-poc/eval/evaluate_supervisor.py
    ```
 
-The job checks out the repository so the script can import
-`custom_agent/server/agent.py` and load `eval/test_cases.json`.
+6. Confirm that the same parent folder contains both `custom_agent/` and
+   `eval/`.
+
+The script uses its own path to find `custom_agent/server/agent.py` and
+`eval/test_cases.json`. If your workspace uses a different folder name, use
+that full path instead.
+
+If you later receive an approved Azure DevOps repository, you can choose Git as
+the Job source instead and use `eval/evaluate_supervisor.py` as the script
+path.
 
 ### 9.3 Configure serverless Python dependencies
 
@@ -791,8 +862,9 @@ fraudulent.
 4. Open the App configuration and **App resources**.
 5. Add or replace the resource using the correct key from Step 5.
 6. Save the App configuration.
-7. Redeploy the App from the branch that contains the matching code/config.
-8. Run the browser test again.
+7. If the code/config changed, update the corresponding workspace files.
+8. Click **Deploy**, select the same workspace source folder, and deploy again.
+9. Run the browser test again.
 
 Changing the linked warehouse, experiment, model endpoint, or MCP App does not
 require changing Python code because the App reads those values through
@@ -831,7 +903,8 @@ the supervisor’s App resource points to the new exact App name.
 |---|---|---|
 | Databricks Apps is missing | Workspace feature availability | Ask an admin to enable Databricks Apps/serverless Apps |
 | App exists but is not running | App overview status | Deploy the App after linking all required resources |
-| Git deployment cannot read the repo | Git credential/provider | Configure the App service principal’s Git credential or use a permitted fork |
+| Workspace upload cannot read the code | Workspace folder or missing files | Select the folder with `app.yaml` at its top level and confirm `server/` was extracted |
+| Git deployment cannot read the repo | Only relevant if you later choose Git | Configure the App service principal’s Git credential or use a permitted Azure DevOps repository |
 | `app.yaml` resource resolution fails | Resource key spelling | Match `supervisor-warehouse`, `supervisor-experiment`, `supervisor-model`, and `supervisor-mcp-app` exactly |
 | `WAREHOUSE_ID` is missing | SQL warehouse resource | Add the warehouse with custom key `supervisor-warehouse` and **Can use** |
 | Model call fails | Endpoint state and permission | Use a chat-capable endpoint in **READY** state with **Can query** |
@@ -852,7 +925,7 @@ dependency installation failures, and permission errors.
 You are finished with the UI-only POC when all of these are true:
 
 - [ ] The custom App `insurance-fraud-supervisor-poc` exists.
-- [ ] The App deploy source is the Git repository with source path `custom_agent`.
+- [ ] The App deploy source is a workspace folder with `app.yaml` at its top level.
 - [ ] The SQL warehouse is linked as `supervisor-warehouse` with **Can use**.
 - [ ] The MLflow experiment is linked as `supervisor-experiment`.
 - [ ] The model endpoint is linked as `supervisor-model` with **Can query** and is READY.
@@ -897,16 +970,16 @@ repository. Keep it separate from `insurance-fraud-supervisor-poc`.
 
 ## Official Databricks references
 
-- [Create a custom Databricks App](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/create-custom-app)
-- [Deploy a Databricks App](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/deploy)
-- [Add resources to a Databricks App](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/resources)
-- [Define environment variables in a Databricks App](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/environment-variables)
-- [Add a UC function resource](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/functions)
-- [Add a model serving endpoint resource](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/model-serving)
-- [Run multi-statement queries in SQL Editor](https://docs.databricks.com/aws/en/sql/user/sql-editor/run-queries)
-- [Configure and edit Lakeflow Jobs](https://docs.databricks.com/aws/en/jobs/configure-job)
-- [Use Git with Lakeflow Jobs](https://docs.databricks.com/aws/en/jobs/git)
-- [Configure the serverless environment](https://docs.databricks.com/aws/en/compute/serverless/dependencies)
-- [Configure Python script task parameters](https://docs.databricks.com/aws/en/jobs/task-parameters)
-- [Create MLflow experiments](https://docs.databricks.com/aws/en/mlflow/experiments)
-- [Evaluate GenAI Apps with an MLflow harness](https://docs.databricks.com/aws/en/mlflow3/genai/eval-monitor/concepts/eval-harness)
+- [Create a custom Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/create-custom-app)
+- [Deploy a Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/deploy)
+- [Add resources to a Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/resources)
+- [Define environment variables in a Databricks App](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/environment-variables)
+- [Add a Databricks App resource](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/apps-resource)
+- [Add a UC function resource](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/functions)
+- [Add a model serving endpoint resource](https://learn.microsoft.com/en-us/azure/databricks/dev-tools/databricks-apps/model-serving)
+- [Run multi-statement queries in SQL Editor](https://learn.microsoft.com/en-us/azure/databricks/sql/user/sql-editor/run-queries)
+- [Workspace files: create and import](https://learn.microsoft.com/en-us/azure/databricks/files/workspace-basics)
+- [Configure and edit Lakeflow Jobs](https://learn.microsoft.com/en-us/azure/databricks/jobs/configure-job)
+- [Configure the serverless environment](https://learn.microsoft.com/en-us/azure/databricks/compute/serverless/dependencies)
+- [Configure Python script task parameters](https://learn.microsoft.com/en-us/azure/databricks/jobs/task-parameters)
+- [Create MLflow experiments](https://learn.microsoft.com/en-us/azure/databricks/mlflow/experiments)

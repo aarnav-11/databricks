@@ -7,7 +7,8 @@ for a future application-owned frontend.
 
 For a from-zero, click-by-click recreation in a different workspace, start with
 [`reproduce.md`](./reproduce.md). It creates the custom Databricks App first,
-then links teammate-owned resources through the UI; no CLI or token is needed.
+then manually uploads the App code and links teammate-owned resources through
+the UI; no GitHub, CLI, or token is needed.
 This README is the shorter technical overview.
 
 ## What the custom supervisor does
@@ -45,7 +46,9 @@ conversation history and send it back with each `/responses` request.
 Use [`reproduce.md`](./reproduce.md) for the UI-only procedure. The repository
 also keeps `databricks.yml` and `resources/*.yml` as optional automation
 definitions for teammates who later want bundle-based deployment, but they are
-not required for the App UI workflow.
+not required for the App UI workflow. The guide uploads `custom_agent/` as a
+workspace folder; Git is only an optional source when an approved provider is
+available.
 
 The custom App needs a serverless SQL warehouse, a queryable chat-capable model
 serving endpoint, an MLflow experiment, `Can execute` on the listed UC

@@ -162,3 +162,84 @@ Keychain; no access token or client secret is stored in this repository.
 
 These limits are intentional: the sample demonstrates the memory architecture
 and orchestration pattern without pretending to be a deployable fraud decision system.
+
+## Custom supervisor iteration (2026-08-25)
+
+The side-by-side custom supervisor App was implemented and deployed for the POC:
+
+- App: `insurance-fraud-supervisor-poc`
+- URL: `https://insurance-fraud-supervisor-poc-7474651884617029.aws.databricksapps.com`
+- Model endpoint: `databricks-gpt-oss-120b`
+- MLflow experiment: `/Users/aarnav11@g.ucla.edu/insurance-fraud-supervisor-poc`
+  (ID `3493327909184567`)
+- Bootstrap run: `520603578212476` (successful; the UC function surface now has
+  12 governed functions)
+- Active deployment: `01f1a0c8f88d1f4a985736b6165cf330` (successful)
+- App state: `RUNNING`; compute state: `ACTIVE`
+
+The custom agent uses a bounded LangGraph loop. It extracts a claim ID, asks the
+router whether more evidence is needed, validates the requested planes in Python,
+queries the selected UC functions, reassesses, and synthesizes a cited answer or
+asks for the missing claim ID. External VIN lookup is an explicit, read-only
+plane; memory writes are not in the automatic plane allowlist.
+
+End-to-end checks passed through `/responses`:
+
+1. `What can you investigate?` returned HTTP 200 and requested a claim ID.
+2. A `CLM-1001` triage request returned HTTP 200 with score `100 (HIGH)`, rules
+   `R001, R002, R003, R004, R005, R007`, document evidence `DOC-1001-A` and
+   `DOC-1001-B`, and a human-review recommendation.
+
+The App resource file intentionally binds 16 resources, staying within the
+Databricks App resource limit. The custom agent receives the governed function
+surface rather than direct table bindings; each adapter invokes parameterized
+Unity Catalog SQL functions through Statement Execution.
+
+### Safe orchestration trace (2026-08-25)
+
+Requests may set `custom_inputs.debug_trace` to `true`. The Responses API then
+returns `custom_outputs.supervisor_trace` containing the loop's decisions,
+accepted/rejected planes, function/tool names, statuses, row counts, queried
+planes, and stop reason. It deliberately excludes private model chain-of-
+thought and hidden prompts. A live `CLM-1001` request returned HTTP 200 with
+the trace and completed after the snapshot, governance, and entities planes.
+
+### Root-route follow-up
+
+The first deployment intentionally enabled MLflow's optional chat proxy even
+though no embedded chat UI was present. That made the browser root proxy to the
+unused local port 3000 and return HTTP 503 (`Service unavailable`). The proxy
+was removed and the App now serves its document-style UI at the root. After
+the follow-up deployment, `/` and `/health` returned HTTP 200 and `/responses`
+continued to return HTTP 200.
+
+### Document UI and evaluation harness (2026-08-25)
+
+The custom App root now serves a small browser UI for the POC:
+
+- UI: `https://insurance-fraud-supervisor-poc-7474651884617029.aws.databricksapps.com`
+- App deployment: `01f1a0c8f88d1f4a985736b6165cf330`
+- `/` returned HTTP 200 with the document-style memo UI;
+- `/health` returned HTTP 200;
+- a trace-enabled `/responses` clarification request returned HTTP 200.
+
+The UI submits the same Responses API request an application-owned frontend
+would submit, then renders the answer as a memo with metadata, a visual path
+diagram, a collapsible decision/query/synthesis timeline, and raw trace JSON.
+The trace is explicitly
+limited to safe orchestration metadata (routing decisions, planes, functions,
+statuses, row counts, and stop reasons); it does not expose private model
+chain-of-thought or hidden prompts.
+
+The evaluation harness was deployed as the serverless bundle job
+`insurance-fraud-supervisor-evaluation`:
+
+- Job ID: `629429171419536`
+- Job run ID: `1055175224433068`
+- [Job run](https://dbc-d0355882-ae53.cloud.databricks.com/jobs/629429171419536/runs/1055175224433068?o=7474651884617029)
+- MLflow evaluation run: `4b0c89bd29a24eab96ff4905cb801ac7`
+- [MLflow evaluation](https://dbc-d0355882-ae53.cloud.databricks.com/ml/experiments/3493327909184567/evaluation-runs?selectedRunUuid=4b0c89bd29a24eab96ff4905cb801ac7)
+
+All three synthetic cases passed the `supervisor_contract` scorer (contract
+pass rate `1.0`). The job evaluates the bundle's supervisor graph directly,
+records MLflow traces and scorer results, and does not write case memory.

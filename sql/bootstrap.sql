@@ -415,4 +415,93 @@ RETURN
   FROM workspace.insurance_fraud_poc.governance_policies
   ORDER BY policy_id;
 
+CREATE OR REPLACE FUNCTION workspace.insurance_fraud_poc.get_claim_entities(
+  p_claim_id STRING COMMENT 'Claim identifier such as CLM-1001'
+)
+RETURNS TABLE (
+  entity_id STRING,
+  entity_type STRING,
+  display_name STRING,
+  attributes STRING
+)
+COMMENT 'Entity Plane: return the claim and directly linked canonical entities.'
+RETURN
+  WITH ids AS (
+    SELECT p_claim_id AS entity_id
+    UNION
+    SELECT source_id
+    FROM workspace.insurance_fraud_poc.graph_edges
+    WHERE target_id = p_claim_id
+    UNION
+    SELECT target_id
+    FROM workspace.insurance_fraud_poc.graph_edges
+    WHERE source_id = p_claim_id
+  )
+  SELECT DISTINCT e.entity_id, e.entity_type, e.display_name, e.attributes
+  FROM workspace.insurance_fraud_poc.entities e
+  JOIN ids USING (entity_id)
+  ORDER BY e.entity_id;
+
+CREATE OR REPLACE FUNCTION workspace.insurance_fraud_poc.get_business_terms()
+RETURNS TABLE (
+  term STRING,
+  definition STRING,
+  owner STRING
+)
+COMMENT 'Business Knowledge Plane: return the controlled insurance-fraud vocabulary.'
+RETURN
+  SELECT term, definition, owner
+  FROM workspace.insurance_fraud_poc.business_terms
+  ORDER BY term;
+
+CREATE OR REPLACE FUNCTION workspace.insurance_fraud_poc.get_business_rules()
+RETURNS TABLE (
+  rule_id STRING,
+  rule_name STRING,
+  weight INT,
+  rule_description STRING,
+  rule_version STRING,
+  active BOOLEAN
+)
+COMMENT 'Business Knowledge Plane: return versioned deterministic rule definitions.'
+RETURN
+  SELECT rule_id, rule_name, weight, rule_description, rule_version, active
+  FROM workspace.insurance_fraud_poc.business_rules
+  ORDER BY rule_id;
+
+CREATE OR REPLACE FUNCTION workspace.insurance_fraud_poc.get_model_metadata()
+RETURNS TABLE (
+  model_id STRING,
+  version STRING,
+  model_type STRING,
+  description STRING,
+  low_max INT,
+  medium_max INT,
+  active BOOLEAN
+)
+COMMENT 'Models and Rules Plane: return the active scorer metadata and thresholds.'
+RETURN
+  SELECT model_id, version, model_type, description, low_max, medium_max, active
+  FROM workspace.insurance_fraud_poc.model_registry
+  ORDER BY model_id, version;
+
+CREATE OR REPLACE FUNCTION workspace.insurance_fraud_poc.get_audit_events(
+  p_claim_id STRING COMMENT 'Claim identifier; NULL returns all POC audit events'
+)
+RETURNS TABLE (
+  event_id STRING,
+  event_ts TIMESTAMP,
+  actor STRING,
+  action STRING,
+  claim_id STRING,
+  status STRING,
+  details STRING
+)
+COMMENT 'Guardrails and Governance Plane: return attributable audit events for a claim.'
+RETURN
+  SELECT event_id, event_ts, actor, action, claim_id, status, details
+  FROM workspace.insurance_fraud_poc.audit_events
+  WHERE p_claim_id IS NULL OR claim_id = p_claim_id
+  ORDER BY event_ts, event_id;
+
 SELECT * FROM workspace.insurance_fraud_poc.score_claim('CLM-1001');

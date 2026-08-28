@@ -16,6 +16,12 @@ variables:
   warehouse_id:
     description: Existing serverless SQL warehouse
     default: 57a8a4c616c87cb2
+  model_endpoint:
+    description: Databricks foundation model serving endpoint used by the custom agent
+    default: databricks-gpt-oss-120b
+  mlflow_experiment_id:
+    description: MLflow experiment ID used for custom-agent tracing
+    default: "3493327909184567"
 
 targets:
   dev:

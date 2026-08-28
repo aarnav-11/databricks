@@ -1,0 +1,37 @@
+[
+  {
+    "inputs": {
+      "question": "For CLM-1001, give me a concise triage summary with the strongest risk signals and the next human-review step."
+    },
+    "expectations": {
+      "case_id": "claim_triage",
+      "claim_id": "CLM-1001",
+      "required_planes": ["snapshot", "governance"],
+      "required_functions": ["get_claim_snapshot", "get_governance_controls"],
+      "required_text": ["CLM-1001", "human"]
+    }
+  },
+  {
+    "inputs": {
+      "question": "What can you investigate?"
+    },
+    "expectations": {
+      "case_id": "missing_claim_id",
+      "expected_stop_reason": "missing_claim_id",
+      "required_text": ["claim identifier"],
+      "no_function_calls": true
+    }
+  },
+  {
+    "inputs": {
+      "question": "For CLM-1002, show the linked entities and network signals, then recommend the smallest human review step."
+    },
+    "expectations": {
+      "case_id": "network_triage",
+      "claim_id": "CLM-1002",
+      "required_planes": ["snapshot", "governance", "network"],
+      "required_functions": ["get_claim_snapshot", "get_governance_controls", "get_claim_network"],
+      "required_text": ["CLM-1002", "human"]
+    }
+  }
+]
